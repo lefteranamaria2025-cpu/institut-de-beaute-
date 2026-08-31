@@ -82,7 +82,7 @@ export default async function handler(req, res) {
     if (!clientResp.ok) {
       const errText = await clientResp.text();
       console.error('Brevo error (client email):', errText);
-      return res.status(502).json({ error: "L'envoi de l'email a échoué" });
+      return res.status(502).json({ error: "Brevo: " + errText, status: clientResp.status });
     }
 
     // 2. Notify the salon of the new booking (best-effort, doesn't block the response)
