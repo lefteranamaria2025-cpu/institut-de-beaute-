@@ -916,6 +916,9 @@
           console.error('Booking error detail:', result.data);
           return;
         }
+        if(result.data && result.data.dbError){
+          alert("DEBUG Supabase : " + result.data.dbError);
+        }
         document.getElementById('confirmText').textContent =
           name + ', votre rendez-vous pour "' + service + '" le ' + date + ' de ' + time + ' à ' + endTime +
           ' est enregistré. Un email de confirmation vient d\'être envoyé à ' + email + '.';

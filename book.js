@@ -68,6 +68,7 @@ export default async function handler(req, res) {
 
   try {
     // 1. Save the booking in Supabase first (so it exists even if the email step has an issue)
+    let dbErrorMsg = null;
     try {
       const supabase = getSupabase();
       const { error: dbError } = await supabase.from('bookings').insert({
@@ -79,9 +80,10 @@ export default async function handler(req, res) {
         reminder_sent: false,
         confirmation_sent: true
       });
-      if (dbError) console.error('Supabase insert error:', dbError);
+      if (dbError) { console.error('Supabase insert error:', dbError); dbErrorMsg = dbError.message; }
     } catch (dbErr) {
       console.error('Supabase connection error:', dbErr);
+      dbErrorMsg = dbErr.message;
     }
 
     // 2. Send confirmation to the client
@@ -122,7 +124,7 @@ export default async function handler(req, res) {
       })
     }).catch((e) => console.error('Brevo error (salon notice):', e));
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, dbError: dbErrorMsg });
   } catch (err) {
     console.error('Booking error:', err);
     return res.status(500).json({ error: 'Erreur serveur' });
