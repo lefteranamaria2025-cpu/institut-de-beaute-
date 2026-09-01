@@ -6,11 +6,12 @@
 import { getSupabase } from './_supabase.js';
 
 export default async function handler(req, res) {
+  const rawUrl = process.env.SUPABASE_URL || '';
   const report = {
-    SUPABASE_URL_present: !!process.env.SUPABASE_URL,
-    SUPABASE_URL_preview: process.env.SUPABASE_URL
-      ? process.env.SUPABASE_URL.slice(0, 20) + '...'
-      : null,
+    SUPABASE_URL_full: rawUrl,
+    SUPABASE_URL_length: rawUrl.length,
+    SUPABASE_URL_has_trailing_slash: rawUrl.endsWith('/'),
+    SUPABASE_URL_has_whitespace: rawUrl !== rawUrl.trim(),
     SUPABASE_SERVICE_KEY_present: !!process.env.SUPABASE_SERVICE_KEY,
     SUPABASE_SERVICE_KEY_length: process.env.SUPABASE_SERVICE_KEY
       ? process.env.SUPABASE_SERVICE_KEY.length
