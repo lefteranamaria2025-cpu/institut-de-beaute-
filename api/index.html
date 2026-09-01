@@ -912,7 +912,7 @@
         submitBtn.disabled = false;
         submitBtn.textContent = originalBtnText;
         if(!result.ok){
-          alert("Erreur : " + (result.data && result.data.error ? result.data.error : 'inconnue') + " (code " + (result.data && result.data.status || '?') + ")");
+          alert("Une erreur est survenue. Merci de réessayer ou de nous appeler au 06 05 60 49 49.");
           console.error('Booking error detail:', result.data);
           return;
         }

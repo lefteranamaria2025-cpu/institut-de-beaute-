@@ -68,6 +68,7 @@ export default async function handler(req, res) {
 
   try {
     // 1. Save the booking in Supabase first (so it exists even if the email step has an issue)
+    let dbErrorMsg = null;
     try {
       const supabase = getSupabase();
       const { error: dbError } = await supabase.from('bookings').insert({
@@ -79,9 +80,10 @@ export default async function handler(req, res) {
         reminder_sent: false,
         confirmation_sent: true
       });
-      if (dbError) console.error('Supabase insert error:', dbError);
+      if (dbError) { console.error('Supabase insert error:', dbError); dbErrorMsg = dbError.message; }
     } catch (dbErr) {
       console.error('Supabase connection error:', dbErr);
+      dbErrorMsg = dbErr.message;
     }
 
     // 2. Send confirmation to the client
@@ -103,7 +105,7 @@ export default async function handler(req, res) {
     if (!clientResp.ok) {
       const errText = await clientResp.text();
       console.error('Brevo error (client email):', errText);
-      return res.status(502).json({ error: "Brevo: " + errText, status: clientResp.status });
+      return res.status(502).json({ error: "L'envoi de l'email a échoué" });
     }
 
     // 3. Notify the salon of the new booking (best-effort, doesn't block the response)
