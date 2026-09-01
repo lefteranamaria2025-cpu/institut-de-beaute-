@@ -732,7 +732,7 @@
       var dateStr = toDateStr(calViewYear, calViewMonth, day);
       var weekday = dateObj.getDay(); // 0=dim,3=mer fermés
       var isPast = dateObj < today;
-      var isClosed = !SALON_HOURS[weekday];
+      var isClosed = !SALON_HOURS[weekday] || isFullyClosedByOwner(dateStr);
 
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -761,9 +761,7 @@
     calViewMonth++; if(calViewMonth > 11){ calViewMonth = 0; calViewYear++; }
     renderCalendar();
   });
-  renderCalendar();
-
-  var SLOT_STEP_MIN = 30; // intervalle entre deux créneaux proposés
+  loadClosures().then(function(){ renderCalendar(); });
 
   var MSG = {
     closed: {
@@ -808,6 +806,29 @@
     return d ? parseInt(d,10) : 60; // valeur par défaut si le soin n'a pas de durée définie
   }
 
+  // --- Fermetures ponctuelles définies par la propriétaire ---
+  var closures = [];
+  function loadClosures(){
+    return fetch('/api/closures')
+      .then(function(r){ return r.ok ? r.json() : { closures: [] }; })
+      .then(function(data){ closures = data.closures || []; })
+      .catch(function(){ closures = []; });
+  }
+
+  function isFullyClosedByOwner(dateStr){
+    return closures.some(function(c){
+      return c.closure_date === dateStr && !c.start_time && !c.end_time;
+    });
+  }
+
+  function closedRangesForDate(dateStr){
+    return closures.filter(function(c){
+      return c.closure_date === dateStr && c.start_time && c.end_time;
+    }).map(function(c){
+      return { start: timeToMinutes(c.start_time.slice(0,5)), end: timeToMinutes(c.end_time.slice(0,5)) };
+    });
+  }
+
   function renderSlots(){
     var dateEl = document.getElementById('bdate');
     var hint = document.getElementById('scheduleHint');
@@ -826,7 +847,7 @@
 
     var day = new Date(dateEl.value + 'T00:00:00').getDay();
     var hours = SALON_HOURS[day];
-    if(!hours){
+    if(!hours || isFullyClosedByOwner(dateEl.value)){
       hint.textContent = MSG.closed[lang];
       hint.style.color = '#b5453a';
       return;
@@ -843,10 +864,13 @@
     var openMin = timeToMinutes(hours.open);
     var closeMin = timeToMinutes(hours.close);
     var lastStart = closeMin - duration;
+    var blockedRanges = closedRangesForDate(dateEl.value);
 
     var slots = [];
     for(var t = openMin; t <= lastStart; t += SLOT_STEP_MIN){
-      slots.push(t);
+      var slotEnd = t + duration;
+      var overlapsClosure = blockedRanges.some(function(r){ return t < r.end && slotEnd > r.start; });
+      if(!overlapsClosure){ slots.push(t); }
     }
 
     if(slots.length === 0){

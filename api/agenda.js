@@ -240,6 +240,37 @@ const AGENDA_HTML = `<!DOCTYPE html>
       <span class="dot"></span>
       <span>Aici e doar interfața de adăugare. În versiunea live, de îndată ce salvezi o clientă, sistemul trimite singur mesajul personalizat de reamintire (24h sau 48h, cum alegi mai jos) &mdash; fără să mai faci nimic.</span>
     </div>
+
+    <div style="margin-top:40px; padding-top:32px; border-top:1px solid var(--line);">
+      <span class="script">urgențe &amp; concedii</span>
+      <h2 style="font-size:1.3rem; margin-bottom:20px;">Blochează o zi sau un interval</h2>
+      <form id="closureForm">
+        <div class="field">
+          <label for="clzDate">Data</label>
+          <input type="date" id="clzDate" required>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="clzStart">De la ora (opțional)</label>
+            <input type="time" id="clzStart">
+          </div>
+          <div class="field">
+            <label for="clzEnd">Până la ora (opțional)</label>
+            <input type="time" id="clzEnd">
+          </div>
+        </div>
+        <div class="field">
+          <label for="clzReason">Motiv (opțional, doar pentru tine)</label>
+          <input type="text" id="clzReason" placeholder="Ex. urgență medicală">
+        </div>
+        <div class="agenda-note">
+          <span class="dot"></span>
+          <span>Lasă orele goale ca să blochezi toată ziua. Completează-le ca să blochezi doar un interval (ex. 13:00–18:30 pentru jumătate de zi).</span>
+        </div>
+        <button type="submit" class="add-btn">Blochează</button>
+      </form>
+      <div id="closuresList" style="margin-top:20px;"></div>
+    </div>
   </div>
 
   <div class="panel-list">
@@ -542,6 +573,90 @@ const AGENDA_HTML = `<!DOCTYPE html>
     document.getElementById('cservice').dispatchEvent(new Event('change'));
   });
 
+  // --- Blocare zile / intervale ---
+  function fmtClzTime(t){
+    return t ? t.slice(0,5) : '';
+  }
+
+  async function loadClosures(){
+    try{
+      var res = await fetch('/api/closures');
+      var data = await res.json();
+      renderClosuresList(data.closures || []);
+    }catch(e){
+      console.error('Nu s-au putut încărca blocările', e);
+    }
+  }
+
+  function renderClosuresList(list){
+    var container = document.getElementById('closuresList');
+    if(list.length === 0){
+      container.innerHTML = '<div class="empty" style="padding:16px 4px;">Nicio zi blocată momentan.</div>';
+      return;
+    }
+    var sorted = list.slice().sort(function(a,b){ return a.closure_date.localeCompare(b.closure_date); });
+    container.innerHTML = sorted.map(function(c){
+      var whenLabel = fmtDate(c.closure_date);
+      var rangeLabel = (c.start_time && c.end_time)
+        ? (fmtClzTime(c.start_time) + '–' + fmtClzTime(c.end_time))
+        : 'toată ziua';
+      return '<div class="client-card">' +
+        '<div class="client-info">' +
+          '<div class="client-name">'+whenLabel+'</div>' +
+          '<div class="client-meta">'+rangeLabel+(c.reason ? ' &middot; '+c.reason : '')+'</div>' +
+        '</div>' +
+        '<div class="client-when">' +
+          '<button class="remove-btn" onclick="removeClosure(\\''+c.id+'\\')">&times; deblochează</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  async function removeClosure(id){
+    try{
+      await fetch('/api/closures?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    }catch(e){
+      console.error('Nu s-a putut deploca', e);
+    }
+    await loadClosures();
+  }
+  window.removeClosure = removeClosure;
+
+  document.getElementById('closureForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var payload = {
+      date: document.getElementById('clzDate').value,
+      startTime: document.getElementById('clzStart').value || null,
+      endTime: document.getElementById('clzEnd').value || null,
+      reason: document.getElementById('clzReason').value || null
+    };
+    var btn = e.target.querySelector('.add-btn');
+    var original = btn.textContent;
+    btn.disabled = true; btn.textContent = '...';
+
+    fetch('/api/closures', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+      .then(function(result){
+        btn.disabled = false; btn.textContent = original;
+        if(!result.ok){
+          alert('Eroare: ' + (result.data && result.data.error ? result.data.error : 'necunoscută'));
+          return;
+        }
+        e.target.reset();
+        loadClosures();
+      })
+      .catch(function(err){
+        btn.disabled = false; btn.textContent = original;
+        console.error(err);
+        alert('Eroare la salvare. Încearcă din nou.');
+      });
+  });
+
+  loadClosures();
   loadClients();
 </script>
 
