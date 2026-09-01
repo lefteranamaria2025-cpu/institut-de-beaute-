@@ -1,20 +1,24 @@
 // Vercel serverless function: /api/book
-// Receives a booking submitted from the site's public form and sends
-// a confirmation email to the client via Brevo's transactional email API.
+// Receives a booking submitted from the site's public form, saves it in
+// Supabase, and sends a confirmation email to the client via Brevo.
 //
-// Required environment variable (set in Vercel, never in this file):
-//   BREVO_API_KEY   -> the API key generated in Brevo (SMTP & API > API Keys)
+// Required environment variables (set in Vercel, never in this file):
+//   BREVO_API_KEY         -> the API key generated in Brevo (SMTP & API > API Keys)
+//   SUPABASE_URL          -> Supabase project URL
+//   SUPABASE_SERVICE_KEY  -> Supabase service_role key
 //
 // Optional environment variables:
 //   SALON_EMAIL     -> email address bookings should also be copied to (the salon's inbox)
 //   SALON_NAME      -> display name used as the "from" name in emails (defaults below)
+
+import { getSupabase } from './_supabase.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { name, email, phone, service, date, time } = req.body || {};
+  const { name, email, phone, service, date, time, dureeMin, reminderHours } = req.body || {};
 
   if (!name || !email || !service || !date || !time) {
     return res.status(400).json({ error: 'Champs manquants' });
@@ -63,7 +67,24 @@ export default async function handler(req, res) {
   `;
 
   try {
-    // 1. Send confirmation to the client
+    // 1. Save the booking in Supabase first (so it exists even if the email step has an issue)
+    try {
+      const supabase = getSupabase();
+      const { error: dbError } = await supabase.from('bookings').insert({
+        name, phone: phone || null, email, service,
+        duree_min: dureeMin || 60,
+        booking_date: date,
+        booking_time: time,
+        reminder_hours: reminderHours || 24,
+        reminder_sent: false,
+        confirmation_sent: true
+      });
+      if (dbError) console.error('Supabase insert error:', dbError);
+    } catch (dbErr) {
+      console.error('Supabase connection error:', dbErr);
+    }
+
+    // 2. Send confirmation to the client
     const clientResp = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -85,7 +106,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "Brevo: " + errText, status: clientResp.status });
     }
 
-    // 2. Notify the salon of the new booking (best-effort, doesn't block the response)
+    // 3. Notify the salon of the new booking (best-effort, doesn't block the response)
     fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -107,3 +128,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Erreur serveur' });
   }
 }
+
