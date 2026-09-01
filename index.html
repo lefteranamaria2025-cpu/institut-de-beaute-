@@ -905,7 +905,7 @@
     fetch('/api/book', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, phone: phone, email: email, service: service, date: date, time: time })
+      body: JSON.stringify({ name: name, phone: phone, email: email, service: service, date: date, time: time, dureeMin: dureeMin, reminderHours: 24 })
     })
       .then(function(resp){ return resp.json().then(function(data){ return { ok: resp.ok, data: data }; }); })
       .then(function(result){

@@ -157,6 +157,10 @@ const AGENDA_HTML = `<!DOCTYPE html>
         <input type="tel" id="cphone" required placeholder="06 12 34 56 78">
       </div>
       <div class="field">
+        <label for="cemail">Email (pentru reamintire)</label>
+        <input type="email" id="cemail" placeholder="clienta@exemplu.com">
+      </div>
+      <div class="field">
         <label for="cservice">Serviciu</label>
         <select id="cservice" required>
           <option value="">Selectează</option>
@@ -422,28 +426,40 @@ const AGENDA_HTML = `<!DOCTYPE html>
     if(currentView === 'calendar'){ renderCalendar(); }
   }
 
+  function rowToClient(r){
+    return {
+      id: r.id,
+      name: r.name,
+      phone: r.phone,
+      email: r.email,
+      service: r.service,
+      date: r.booking_date,
+      time: (r.booking_time || '').slice(0,5),
+      reminder: r.reminder_hours,
+      duree: r.duree_min
+    };
+  }
+
   async function loadClients(){
     try{
-      var res = await window.storage.get(STORAGE_KEY, false);
-      clients = res && res.value ? JSON.parse(res.value) : [];
+      var res = await fetch('/api/bookings');
+      if(!res.ok){ throw new Error('HTTP ' + res.status); }
+      var data = await res.json();
+      clients = (data.bookings || []).map(rowToClient);
     }catch(e){
+      console.error('Nu s-au putut încărca programările', e);
       clients = [];
     }
     render();
   }
 
-  async function saveClients(){
+  async function removeClient(id){
     try{
-      await window.storage.set(STORAGE_KEY, JSON.stringify(clients), false);
+      await fetch('/api/bookings?id=' + encodeURIComponent(id), { method: 'DELETE' });
     }catch(e){
-      console.error('Nu s-a putut salva', e);
+      console.error('Nu s-a putut șterge', e);
     }
-  }
-
-  function removeClient(id){
-    clients = clients.filter(function(c){ return c.id !== id; });
-    saveClients();
-    render();
+    await loadClients();
   }
   window.removeClient = removeClient;
 
@@ -452,25 +468,46 @@ const AGENDA_HTML = `<!DOCTYPE html>
     var serviceSelect = document.getElementById('cservice');
     var dureeAttr = serviceSelect.selectedOptions[0].getAttribute('data-duree');
     var entry = {
-      id: Date.now().toString(),
       name: document.getElementById('cname').value,
       phone: document.getElementById('cphone').value,
+      email: document.getElementById('cemail').value,
       service: serviceSelect.value,
       date: document.getElementById('cdate').value,
       time: document.getElementById('ctime').value,
-      reminder: parseInt(document.getElementById('creminder').value, 10),
-      duree: dureeAttr ? parseInt(dureeAttr, 10) : null
+      reminderHours: parseInt(document.getElementById('creminder').value, 10),
+      dureeMin: dureeAttr ? parseInt(dureeAttr, 10) : null
     };
-    clients.push(entry);
-    saveClients();
-    render();
-    e.target.reset();
-    document.getElementById('previewBox').style.display = 'none';
-    document.getElementById('dureeField').style.display = 'none';
     var addBtn = e.target.querySelector('.add-btn');
     var originalText = addBtn.textContent;
-    addBtn.textContent = '✓ Confirmare trimisă la ' + entry.phone;
-    setTimeout(function(){ addBtn.textContent = originalText; }, 2600);
+    addBtn.disabled = true;
+    addBtn.textContent = '...';
+
+    fetch('/api/bookings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    })
+      .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+      .then(function(result){
+        addBtn.disabled = false;
+        if(!result.ok){
+          addBtn.textContent = originalText;
+          alert('Eroare: ' + (result.data && result.data.error ? result.data.error : 'necunoscută'));
+          return;
+        }
+        loadClients();
+        e.target.reset();
+        document.getElementById('previewBox').style.display = 'none';
+        document.getElementById('dureeField').style.display = 'none';
+        addBtn.textContent = '✓ Programare adăugată';
+        setTimeout(function(){ addBtn.textContent = originalText; }, 2600);
+      })
+      .catch(function(err){
+        addBtn.disabled = false;
+        addBtn.textContent = originalText;
+        console.error(err);
+        alert('Eroare la salvare. Încearcă din nou.');
+      });
   });
 
   function fmtDuree(min){
