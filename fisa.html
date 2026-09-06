@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche cliente — Institut de Beauté du Jardin Anglais</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FFFFFF; --cream-deep:#F7F6F3; --mocha:#141110; --ink:#0F0D0C;
+    --gold:#B8935F; --line:rgba(20,17,15,0.14);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--cream-deep); color:var(--mocha); font-family:'Jost',sans-serif; font-weight:300; line-height:1.65; padding:0 0 80px;}
+  h1,h2{font-family:'Playfair Display',serif; font-weight:500;}
+  .header{text-align:center; padding:50px 6% 30px;}
+  .header .script{font-size:0.75rem; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:10px;}
+  .header h1{font-size:1.8rem;}
+  .header p{opacity:0.65; font-size:0.92rem; max-width:480px; margin:12px auto 0;}
+
+  form{max-width:640px; margin:0 auto; padding:0 6%;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:8px; padding:32px 30px; margin-bottom:24px;}
+  .card h2{font-size:1.15rem; margin-bottom:20px;}
+  .field{display:flex; flex-direction:column; gap:7px; margin-bottom:18px;}
+  .field label{font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.6;}
+  .field input, .field textarea{
+    border:none; border-bottom:1px solid var(--line); background:transparent; padding:9px 2px;
+    font-family:'Jost',sans-serif; font-size:0.98rem; color:var(--mocha); outline:none; resize:vertical;
+  }
+  .field input:focus, .field textarea:focus{border-color:var(--gold);}
+  .row2{display:flex; gap:16px; flex-wrap:wrap;}
+  .row2 .field{flex:1; min-width:200px;}
+
+  .consent-item{border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:14px;}
+  .consent-item.checked{border-color:var(--gold);}
+  .consent-head{display:flex; align-items:flex-start; gap:12px; cursor:pointer;}
+  .consent-head input{margin-top:4px;}
+  .consent-head .label{font-family:'Playfair Display',serif; font-size:1.05rem;}
+  .consent-text{font-size:0.85rem; opacity:0.7; margin:12px 0 0 30px; display:none;}
+  .consent-item.checked .consent-text{display:block;}
+  .consent-signature{margin:14px 0 0 30px; display:none;}
+  .consent-item.checked .consent-signature{display:block;}
+  .consent-signature label{font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; opacity:0.6; display:block; margin-bottom:6px;}
+  .consent-signature input{width:100%; border:none; border-bottom:1px solid var(--line); background:transparent; padding:8px 2px; font-family:'Jost',sans-serif; font-size:0.95rem;}
+
+  .submit-btn{
+    width:100%; background:var(--mocha); color:#fff; border:none; padding:16px; border-radius:4px;
+    font-size:0.82rem; letter-spacing:0.09em; text-transform:uppercase; cursor:pointer;
+  }
+  .submit-btn:disabled{opacity:0.5; cursor:not-allowed;}
+  .note{font-size:0.78rem; opacity:0.55; text-align:center; margin-top:16px;}
+
+  .confirm{max-width:520px; margin:60px auto; text-align:center; padding:0 6%;}
+  .confirm .check{
+    width:52px; height:52px; border-radius:50%; border:1.5px solid var(--gold); margin:0 auto 20px;
+    display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:1.4rem;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="script">institut de beauté du jardin anglais</span>
+  <h1>Fiche cliente &amp; consentement</h1>
+  <p>Merci de compléter cette fiche avant votre soin. Vos informations restent strictement confidentielles et ne sont consultées que par l'institut.</p>
+</div>
+
+<form id="fisaForm">
+  <div class="card">
+    <h2>Informations générales</h2>
+    <div class="field">
+      <label for="fname">Nom et prénom</label>
+      <input type="text" id="fname" required placeholder="Ex. Claire Dubois">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="fphone">Téléphone</label>
+        <input type="tel" id="fphone" placeholder="06 12 34 56 78">
+      </div>
+      <div class="field">
+        <label for="femail">Email</label>
+        <input type="email" id="femail" placeholder="claire@exemple.com">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="fbirth">Date de naissance</label>
+        <input type="date" id="fbirth">
+      </div>
+      <div class="field">
+        <label for="faddress">Adresse</label>
+        <input type="text" id="faddress" placeholder="Optionnel">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fmedical">Allergies, contre-indications, traitements en cours</label>
+      <textarea id="fmedical" rows="3" placeholder="Ex. peau sensible, grossesse, traitement dermatologique en cours..."></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Consentement par type de soin</h2>
+    <p style="font-size:0.85rem; opacity:0.65; margin-bottom:20px;">Cochez uniquement les soins concernés par votre visite. Le texte de consentement s'affiche une fois coché.</p>
+
+    <div class="consent-item" data-type="Épilation Laser">
+      <label class="consent-head">
+        <input type="checkbox" class="consent-check">
+        <span class="label">Épilation Laser</span>
+      </label>
+      <p class="consent-text">Je reconnais avoir été informée des risques et contre-indications liés à l'épilation laser (photosensibilisation, grossesse, exposition solaire récente, certains traitements médicamenteux). Je confirme avoir signalé toute contre-indication connue et j'accepte de recevoir ce soin en toute connaissance de cause.</p>
+      <div class="consent-signature">
+        <label>Nom complet (signature)</label>
+        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
+      </div>
+    </div>
+
+    <div class="consent-item" data-type="Peeling / Soins Visage">
+      <label class="consent-head">
+        <input type="checkbox" class="consent-check">
+        <span class="label">Peeling / Soins Visage</span>
+      </label>
+      <p class="consent-text">Je reconnais avoir été informée des risques liés aux peelings et soins actifs du visage (rougeurs, sensibilité temporaire, réaction allergique possible) et des consignes post-soin à respecter. J'accepte de recevoir ce soin en toute connaissance de cause.</p>
+      <div class="consent-signature">
+        <label>Nom complet (signature)</label>
+        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
+      </div>
+    </div>
+
+    <div class="consent-item" data-type="Remodelage Corporel">
+      <label class="consent-head">
+        <input type="checkbox" class="consent-check">
+        <span class="label">Remodelage Corporel</span>
+      </label>
+      <p class="consent-text">Je reconnais avoir été informée des contre-indications aux soins de remodelage corporel (grossesse, pathologies cardiaques, implants métalliques, troubles vasculaires) et je confirme ne pas être concernée par ces contre-indications, ou en avoir informé l'institut.</p>
+      <div class="consent-signature">
+        <label>Nom complet (signature)</label>
+        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
+      </div>
+    </div>
+
+    <div class="consent-item" data-type="Épilation à la Cire">
+      <label class="consent-head">
+        <input type="checkbox" class="consent-check">
+        <span class="label">Épilation à la Cire</span>
+      </label>
+      <p class="consent-text">Je reconnais avoir été informée des risques liés à l'épilation à la cire (rougeurs, sensibilité, réaction possible sur peau irritée) et je confirme ne pas avoir de contre-indication connue.</p>
+      <div class="consent-signature">
+        <label>Nom complet (signature)</label>
+        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
+      </div>
+    </div>
+
+    <div class="consent-item" data-type="Rehaussement Cils et Sourcils">
+      <label class="consent-head">
+        <input type="checkbox" class="consent-check">
+        <span class="label">Rehaussement Cils et Sourcils</span>
+      </label>
+      <p class="consent-text">Je reconnais avoir été informée des risques liés au rehaussement de cils/sourcils (allergie aux produits utilisés, sensibilité oculaire) et je confirme ne pas avoir de contre-indication connue.</p>
+      <div class="consent-signature">
+        <label>Nom complet (signature)</label>
+        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
+      </div>
+    </div>
+
+    <div class="consent-item" data-type="Manucure / Pédicure">
+      <label class="consent-head">
+        <input type="checkbox" class="consent-check">
+        <span class="label">Manucure / Pédicure</span>
+      </label>
+      <p class="consent-text">Je confirme ne pas avoir d'infection cutanée ou unguéale active et j'accepte de recevoir ce soin en toute connaissance de cause.</p>
+      <div class="consent-signature">
+        <label>Nom complet (signature)</label>
+        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
+      </div>
+    </div>
+  </div>
+
+  <button type="submit" class="submit-btn">Envoyer ma fiche</button>
+  <p class="note">Ces informations sont confidentielles et consultées uniquement par l'institut.</p>
+</form>
+
+<div class="confirm" id="confirmView" style="display:none;">
+  <div class="check">&#10003;</div>
+  <h1 style="font-size:1.4rem; margin-bottom:14px;">Fiche envoyée</h1>
+  <p style="opacity:0.7;">Merci, votre fiche a bien été transmise à l'institut. À très bientôt !</p>
+</div>
+
+<script>
+  document.querySelectorAll('.consent-check').forEach(function(cb){
+    cb.addEventListener('change', function(){
+      cb.closest('.consent-item').classList.toggle('checked', cb.checked);
+    });
+  });
+
+  document.getElementById('fisaForm').addEventListener('submit', function(e){
+    e.preventDefault();
+
+    var consents = [];
+    var missingSignature = false;
+    document.querySelectorAll('.consent-item.checked').forEach(function(item){
+      var signName = item.querySelector('.consent-signname').value.trim();
+      if(!signName){ missingSignature = true; }
+      consents.push({ treatmentType: item.getAttribute('data-type'), signedName: signName });
+    });
+
+    if(missingSignature){
+      alert('Merci de taper votre nom complet pour valider chaque consentement coché.');
+      return;
+    }
+
+    var payload = {
+      name: document.getElementById('fname').value,
+      phone: document.getElementById('fphone').value,
+      email: document.getElementById('femail').value,
+      birthDate: document.getElementById('fbirth').value,
+      address: document.getElementById('faddress').value,
+      medicalNotes: document.getElementById('fmedical').value,
+      consents: consents
+    };
+
+    var btn = e.target.querySelector('.submit-btn');
+    btn.disabled = true; btn.textContent = '...';
+
+    fetch('/api/clients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(function(res){ return res.json().then(function(data){ return { ok: res.ok, data: data }; }); })
+      .then(function(result){
+        if(!result.ok){
+          btn.disabled = false; btn.textContent = 'Envoyer ma fiche';
+          alert("Une erreur est survenue. Merci de réessayer ou de nous appeler au 06 05 60 49 49.");
+          return;
+        }
+        document.getElementById('fisaForm').style.display = 'none';
+        document.querySelector('.header').style.display = 'none';
+        document.getElementById('confirmView').style.display = 'block';
+      })
+      .catch(function(err){
+        btn.disabled = false; btn.textContent = 'Envoyer ma fiche';
+        console.error(err);
+        alert("Une erreur est survenue. Merci de réessayer ou de nous appeler au 06 05 60 49 49.");
+      });
+  });
+</script>
+
+</body>
+</html>
