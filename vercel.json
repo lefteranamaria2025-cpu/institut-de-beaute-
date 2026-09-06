@@ -1,6 +1,8 @@
 {
   "rewrites": [
-    { "source": "/agenda", "destination": "/api/agenda" }
+    { "source": "/agenda", "destination": "/api/agenda" },
+    { "source": "/clienti", "destination": "/api/clienti" },
+    { "source": "/fisa", "destination": "/fisa.html" }
   ],
   "crons": [
     { "path": "/api/send-reminders", "schedule": "0 7 * * *" }
