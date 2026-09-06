@@ -19,21 +19,63 @@ export default async function handler(req, res) {
     const { name, phone, email, birthDate, address, medicalNotes, consents } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Nom manquant' });
 
-    const { data: clientRow, error: clientError } = await supabase
-      .from('clients')
-      .insert({
-        name,
-        phone: phone || null,
-        email: email || null,
-        birth_date: birthDate || null,
-        address: address || null,
-        medical_notes: medicalNotes || null
-      })
-      .select();
+    // Try to find an existing dossier for this same person, so repeated
+    // visits (different treatments) stay in ONE file instead of creating
+    // a new client each time. Matched by name + phone together (both must
+    // match) — safer than either alone, since name alone could clash
+    // between two different people, and phone alone could be shared
+    // within a family.
+    let clientId = null;
 
-    if (clientError) return res.status(500).json({ error: clientError.message });
+    if (name && phone) {
+      const { data: byNamePhone } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('name', name)
+        .eq('phone', phone)
+        .limit(1);
+      if (byNamePhone && byNamePhone.length > 0) clientId = byNamePhone[0].id;
+    }
+    if (!clientId && name && email) {
+      const { data: byNameEmail } = await supabase
+        .from('clients')
+        .select('id')
+        .ilike('name', name)
+        .eq('email', email)
+        .limit(1);
+      if (byNameEmail && byNameEmail.length > 0) clientId = byNameEmail[0].id;
+    }
 
-    const clientId = clientRow[0].id;
+    if (clientId) {
+      // Existing dossier found: update it with any newly provided info
+      // (only overwrite fields that were actually filled in this time)
+      const updates = {};
+      if (name) updates.name = name;
+      if (birthDate) updates.birth_date = birthDate;
+      if (address) updates.address = address;
+      if (medicalNotes) updates.medical_notes = medicalNotes;
+
+      if (Object.keys(updates).length > 0) {
+        const { error: updateError } = await supabase.from('clients').update(updates).eq('id', clientId);
+        if (updateError) return res.status(500).json({ error: updateError.message });
+      }
+    } else {
+      // No match: create a new dossier
+      const { data: clientRow, error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          name,
+          phone: phone || null,
+          email: email || null,
+          birth_date: birthDate || null,
+          address: address || null,
+          medical_notes: medicalNotes || null
+        })
+        .select();
+
+      if (clientError) return res.status(500).json({ error: clientError.message });
+      clientId = clientRow[0].id;
+    }
 
     if (Array.isArray(consents) && consents.length > 0) {
       const rows = consents.map(function (c) {
