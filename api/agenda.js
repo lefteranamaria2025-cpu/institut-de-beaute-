@@ -100,6 +100,13 @@ const AGENDA_HTML = `<!DOCTYPE html>
   }
   .slot-suggest-btn:hover{border-color:var(--gold);}
   .slot-suggest-btn.chosen{background:var(--mocha); color:#fff; border-color:var(--mocha);}
+  .name-sugg-item{
+    padding:10px 14px; cursor:pointer; font-size:0.92rem; border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .name-sugg-item:last-child{border-bottom:none;}
+  .name-sugg-item:hover{background:var(--cream-deep);}
+  .name-sugg-item .sugg-meta{font-size:0.75rem; opacity:0.55;}
   .remove-btn{
     background:none; border:none; color:var(--mocha); opacity:0.4; cursor:pointer; font-size:1.1rem;
     transition:opacity .2s ease;
@@ -162,9 +169,10 @@ const AGENDA_HTML = `<!DOCTYPE html>
     <h2>Fișă nouă</h2>
 
     <form id="addForm">
-      <div class="field">
+      <div class="field" style="position:relative;">
         <label for="cname">Nume clientă</label>
-        <input type="text" id="cname" required placeholder="Ex. Claire Dubois">
+        <input type="text" id="cname" required placeholder="Ex. Claire Dubois" autocomplete="off">
+        <div id="nameSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--line); border-radius:6px; box-shadow:0 10px 24px rgba(0,0,0,0.1); z-index:20; max-height:220px; overflow-y:auto;"></div>
       </div>
       <div id="clientHistoryBox" style="display:none; margin:-8px 0 18px; padding:14px 16px; background:var(--cream-deep); border-radius:6px; border:1px solid var(--line);"></div>
       <div class="field">
@@ -297,6 +305,15 @@ const AGENDA_HTML = `<!DOCTYPE html>
   </div>
 
   <div class="panel-list">
+    <div style="position:relative; margin-bottom:30px; padding-bottom:26px; border-bottom:1px solid var(--line);">
+      <span class="script">căutare rapidă</span>
+      <h2 style="font-size:1.2rem; margin:6px 0 14px;">Caută o clientă</h2>
+      <input type="text" id="clientSearchBox" placeholder="Scrie un nume..." autocomplete="off"
+        style="width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:6px; font-family:'Jost',sans-serif; font-size:0.95rem; outline:none;">
+      <div id="searchSuggestions" style="display:none; position:absolute; top:100%; left:0; right:0; margin-top:2px; background:#fff; border:1px solid var(--line); border-radius:6px; box-shadow:0 10px 24px rgba(0,0,0,0.1); z-index:20; max-height:220px; overflow-y:auto;"></div>
+      <div id="searchResultBox" style="display:none; margin-top:16px; padding:18px 20px; background:var(--cream-deep); border-radius:6px; border:1px solid var(--line);"></div>
+    </div>
+
     <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:6px;">
       <h2 style="margin-bottom:0;">Programările tale</h2>
       <div class="view-toggle">
@@ -891,7 +908,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
   document.getElementById('cdureeH').addEventListener('input', renderSuggestedSlots);
   document.getElementById('cdureeM').addEventListener('input', renderSuggestedSlots);
 
-  // --- Istoric clientă (după nume) ---
+  // --- Istoric clientă (după nume) + sugestii de selecție rapidă ---
   var historyAutofillDone = false;
 
   function attendanceLabel(a){
@@ -900,13 +917,10 @@ const AGENDA_HTML = `<!DOCTYPE html>
     return '<span style="color:var(--gold);">? neștiut</span>';
   }
 
-  document.getElementById('cname').addEventListener('input', function(){
-    var query = this.value.trim().toLowerCase();
+  function showHistoryFor(name){
     var box = document.getElementById('clientHistoryBox');
-    if(query.length < 2){ box.style.display = 'none'; historyAutofillDone = false; return; }
-
-    var matches = clients.filter(function(c){ return (c.name||'').toLowerCase().indexOf(query) !== -1; });
-    if(matches.length === 0){ box.style.display = 'none'; historyAutofillDone = false; return; }
+    var matches = clients.filter(function(c){ return (c.name||'').toLowerCase() === name.toLowerCase(); });
+    if(matches.length === 0){ box.style.display = 'none'; return; }
 
     matches.sort(function(a,b){ return new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time); });
 
@@ -926,15 +940,129 @@ const AGENDA_HTML = `<!DOCTYPE html>
         matches.length + ' programări anterioare &middot; ' + prezent + ' au venit, ' + absent + ' nu au venit, ' + neștiut + ' neștiut' +
       '</div>' + rows + (matches.length > 6 ? '<div style="font-size:0.78rem; opacity:0.5; margin-top:6px;">...și încă '+(matches.length-6)+'</div>' : '');
 
-    // Autocompletare telefon/email din cea mai recentă potrivire exactă de nume,
-    // doar dacă acele câmpuri sunt încă goale (nu suprascriem ce a scris ea deja).
-    var exact = matches.find(function(c){ return (c.name||'').toLowerCase() === query; });
+    var exact = matches[0];
     if(exact && !historyAutofillDone){
       var phoneEl = document.getElementById('cphone');
       var emailEl = document.getElementById('cemail');
       if(!phoneEl.value && exact.phone){ phoneEl.value = exact.phone; }
       if(!emailEl.value && exact.email){ emailEl.value = exact.email; }
       historyAutofillDone = true;
+    }
+  }
+
+  window.selectClientSuggestion = function(name){
+    document.getElementById('cname').value = name;
+    document.getElementById('nameSuggestions').style.display = 'none';
+    historyAutofillDone = false;
+    showHistoryFor(name);
+  };
+
+  document.getElementById('cname').addEventListener('input', function(){
+    var query = this.value.trim().toLowerCase();
+    var box = document.getElementById('clientHistoryBox');
+    var sugg = document.getElementById('nameSuggestions');
+
+    if(query.length < 2){
+      box.style.display = 'none'; sugg.style.display = 'none'; historyAutofillDone = false; return;
+    }
+
+    var matches = clients.filter(function(c){ return (c.name||'').toLowerCase().indexOf(query) !== -1; });
+    if(matches.length === 0){
+      box.style.display = 'none'; sugg.style.display = 'none'; historyAutofillDone = false; return;
+    }
+
+    // Dropdown cu nume unice (cea mai recentă programare per nume)
+    var byName = {};
+    matches.forEach(function(c){
+      var key = c.name.toLowerCase();
+      if(!byName[key] || new Date(c.date+'T'+c.time) > new Date(byName[key].date+'T'+byName[key].time)){
+        byName[key] = c;
+      }
+    });
+    var uniqueNames = Object.keys(byName).map(function(k){ return byName[k]; })
+      .sort(function(a,b){ return a.name.localeCompare(b.name); });
+
+    sugg.style.display = 'block';
+    sugg.innerHTML = uniqueNames.map(function(c){
+      var count = matches.filter(function(m){ return m.name.toLowerCase() === c.name.toLowerCase(); }).length;
+      return '<div class="name-sugg-item" onclick="selectClientSuggestion(\\''+c.name.replace(/'/g,"\\'")+'\\')">' +
+        '<span>'+c.name+'</span><span class="sugg-meta">'+(c.phone||'')+' &middot; '+count+' programări</span>' +
+      '</div>';
+    }).join('');
+
+    // Afișează istoricul live pe măsură ce scrie, dacă potrivirea e deja exactă
+    var exactMatch = matches.some(function(c){ return (c.name||'').toLowerCase() === query; });
+    if(exactMatch){ showHistoryFor(query); } else { box.style.display = 'none'; }
+  });
+
+  document.addEventListener('click', function(e){
+    var sugg = document.getElementById('nameSuggestions');
+    if(sugg && !e.target.closest('#cname') && !e.target.closest('#nameSuggestions')){
+      sugg.style.display = 'none';
+    }
+  });
+
+  // --- Căutare independentă: istoricul oricărei cliente, fără a adăuga o programare ---
+  document.getElementById('clientSearchBox').addEventListener('input', function(){
+    var query = this.value.trim().toLowerCase();
+    var sugg = document.getElementById('searchSuggestions');
+    var resultBox = document.getElementById('searchResultBox');
+
+    if(query.length < 2){ sugg.style.display = 'none'; resultBox.style.display = 'none'; return; }
+
+    var matches = clients.filter(function(c){ return (c.name||'').toLowerCase().indexOf(query) !== -1; });
+    if(matches.length === 0){ sugg.style.display = 'none'; resultBox.style.display = 'none'; return; }
+
+    var byName = {};
+    matches.forEach(function(c){
+      var key = c.name.toLowerCase();
+      if(!byName[key] || new Date(c.date+'T'+c.time) > new Date(byName[key].date+'T'+byName[key].time)){
+        byName[key] = c;
+      }
+    });
+    var uniqueNames = Object.keys(byName).map(function(k){ return byName[k]; })
+      .sort(function(a,b){ return a.name.localeCompare(b.name); });
+
+    sugg.style.display = 'block';
+    sugg.innerHTML = uniqueNames.map(function(c){
+      var count = matches.filter(function(m){ return m.name.toLowerCase() === c.name.toLowerCase(); }).length;
+      return '<div class="name-sugg-item" onclick="showSearchResult(\\''+c.name.replace(/'/g,"\\'")+'\\')">' +
+        '<span>'+c.name+'</span><span class="sugg-meta">'+(c.phone||'')+' &middot; '+count+' programări</span>' +
+      '</div>';
+    }).join('');
+  });
+
+  window.showSearchResult = function(name){
+    document.getElementById('clientSearchBox').value = name;
+    document.getElementById('searchSuggestions').style.display = 'none';
+    var resultBox = document.getElementById('searchResultBox');
+    var matches = clients.filter(function(c){ return (c.name||'').toLowerCase() === name.toLowerCase(); })
+      .sort(function(a,b){ return new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time); });
+    if(matches.length === 0){ resultBox.style.display = 'none'; return; }
+
+    var prezent = matches.filter(function(c){ return c.attendance === 'prezent'; }).length;
+    var absent = matches.filter(function(c){ return c.attendance === 'absent'; }).length;
+    var neștiut = matches.length - prezent - absent;
+
+    var rows = matches.map(function(c){
+      return '<div style="display:flex; justify-content:space-between; gap:10px; font-size:0.88rem; padding:6px 0; border-bottom:1px dashed var(--line);">' +
+        '<span>'+fmtDate(c.date)+' &middot; '+c.time+' &middot; '+c.service+'</span>' + attendanceLabel(c.attendance) +
+      '</div>';
+    }).join('');
+
+    resultBox.style.display = 'block';
+    resultBox.innerHTML =
+      '<div style="font-family:\\'Playfair Display\\',serif; font-size:1.1rem; color:var(--mocha); margin-bottom:4px;">'+matches[0].name+'</div>' +
+      '<div style="font-size:0.85rem; opacity:0.65; margin-bottom:12px;">'+(matches[0].phone||'—')+' &middot; '+(matches[0].email||'—')+'</div>' +
+      '<div style="font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold); margin-bottom:10px;">' +
+        matches.length + ' programări &middot; ' + prezent + ' au venit, ' + absent + ' nu au venit, ' + neștiut + ' neștiut' +
+      '</div>' + rows;
+  };
+
+  document.addEventListener('click', function(e){
+    var sugg = document.getElementById('searchSuggestions');
+    if(sugg && !e.target.closest('#clientSearchBox') && !e.target.closest('#searchSuggestions')){
+      sugg.style.display = 'none';
     }
   });
 
