@@ -305,6 +305,10 @@ const AGENDA_HTML = `<!DOCTYPE html>
       </div>
     </div>
     <div class="sub" id="countLabel">Se încarcă...</div>
+    <div id="listFilterToggle" class="view-toggle" style="margin-bottom:16px; width:fit-content;">
+      <button class="toggle-btn active" id="btnFilterToday" onclick="setListFilter('today')">Azi</button>
+      <button class="toggle-btn" id="btnFilterAll" onclick="setListFilter('all')">Toate</button>
+    </div>
 
     <div id="listView">
       <div id="listArea"></div>
@@ -348,6 +352,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
   }
 
   var currentView = 'list';
+  var listFilter = 'today';
   var calMonth = new Date().getMonth();
   var calYear = new Date().getFullYear();
 
@@ -355,11 +360,20 @@ const AGENDA_HTML = `<!DOCTYPE html>
     currentView = v;
     document.getElementById('listView').style.display = v === 'list' ? 'block' : 'none';
     document.getElementById('calendarView').style.display = v === 'calendar' ? 'block' : 'none';
+    document.getElementById('listFilterToggle').style.display = v === 'list' ? 'flex' : 'none';
     document.getElementById('btnListView').classList.toggle('active', v === 'list');
     document.getElementById('btnCalView').classList.toggle('active', v === 'calendar');
-    if(v === 'calendar'){ renderCalendar(); }
+    if(v === 'calendar'){ renderCalendar(); } else { render(); }
   }
   window.setView = setView;
+
+  function setListFilter(f){
+    listFilter = f;
+    document.getElementById('btnFilterToday').classList.toggle('active', f === 'today');
+    document.getElementById('btnFilterAll').classList.toggle('active', f === 'all');
+    render();
+  }
+  window.setListFilter = setListFilter;
 
   function shiftMonth(delta){
     calMonth += delta;
@@ -409,24 +423,80 @@ const AGENDA_HTML = `<!DOCTYPE html>
     var dayClients = clients.filter(function(c){ return c.date === dateStr; })
       .sort(function(a,b){ return a.time.localeCompare(b.time); });
     var detail = document.getElementById('dayDetail');
-    if(dayClients.length === 0){
-      detail.innerHTML = '<div class="day-detail-label">'+fmtDate(dateStr)+'</div><div class="empty" style="padding:30px 10px;">Nicio programare în această zi.</div>';
-      return;
-    }
-    detail.innerHTML = '<div class="day-detail-label">'+fmtDate(dateStr)+' &middot; '+dayClients.length+' programări</div>' +
-      dayClients.map(function(c){
-        return '<div class="client-card">' +
-          '<div class="client-info">' +
-            '<div class="client-name">'+c.name+'</div>' +
-            '<div class="client-meta">'+c.service+' &middot; '+c.phone+(c.duree ? ' &middot; '+fmtDuree(c.duree) : '')+'</div>' +
-            attendanceButtonsHtml(c.id, c.attendance) +
-          '</div>' +
-          '<div class="client-when"><div class="date">'+c.time+'</div>' +
-          '<button class="remove-btn" onclick="removeClient(\\''+c.id+'\\')">&times; șterge</button></div>' +
-        '</div>';
-      }).join('');
+
+    var appointmentsHtml = dayClients.length === 0
+      ? '<div class="empty" style="padding:20px 10px;">Nicio programare în această zi.</div>'
+      : dayClients.map(function(c){
+          return '<div class="client-card">' +
+            '<div class="client-info">' +
+              '<div class="client-name">'+c.name+'</div>' +
+              '<div class="client-meta">'+c.service+' &middot; '+c.phone+(c.duree ? ' &middot; '+fmtDuree(c.duree) : '')+'</div>' +
+              attendanceButtonsHtml(c.id, c.attendance) +
+            '</div>' +
+            '<div class="client-when"><div class="date">'+c.time+'</div>' +
+            '<button class="remove-btn" onclick="removeClient(\\''+c.id+'\\')">&times; șterge</button></div>' +
+          '</div>';
+        }).join('');
+
+    var slotsHtml = renderAvailableSlotsForDay(dateStr);
+
+    detail.innerHTML =
+      '<div class="day-detail-label">'+fmtDate(dateStr)+' &middot; '+dayClients.length+(dayClients.length===1?' programare':' programări')+'</div>' +
+      appointmentsHtml +
+      '<div style="margin-top:24px; padding-top:18px; border-top:1px dashed var(--line);">' +
+        '<div style="font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:10px;">Ore disponibile (durată implicită: 1h)</div>' +
+        slotsHtml +
+      '</div>';
   }
   window.showDay = showDay;
+
+  function renderAvailableSlotsForDay(dateStr){
+    var day = new Date(dateStr + 'T00:00:00').getDay();
+    var hours = SALON_HOURS[day];
+    if(!hours){
+      return '<span style="font-size:0.85rem; opacity:0.55; font-style:italic;">Salon închis conform orarului oficial în această zi.</span>';
+    }
+    var fullDayClosed = ownerClosures.some(function(cl){ return cl.closure_date === dateStr && !cl.start_time && !cl.end_time; });
+    if(fullDayClosed){
+      return '<span style="font-size:0.85rem; opacity:0.55; font-style:italic;">Ai blocat toată ziua aceasta.</span>';
+    }
+    var blockedRanges = ownerClosures.filter(function(cl){
+      return cl.closure_date === dateStr && cl.start_time && cl.end_time;
+    }).map(function(cl){ return { start: timeToMin(cl.start_time.slice(0,5)), end: timeToMin(cl.end_time.slice(0,5)) }; });
+
+    var takenRanges = clients.filter(function(c){ return c.date === dateStr; }).map(function(c){
+      var start = timeToMin(c.time);
+      return { start: start, end: start + (c.duree || 60) };
+    });
+
+    var duration = 60;
+    var openMin = timeToMin(hours.open);
+    var closeMin = timeToMin(hours.close);
+    var lastStart = closeMin - duration;
+    var slots = [];
+    for(var t = openMin; t <= lastStart; t += SLOT_STEP){
+      var slotEnd = t + duration;
+      var overlaps = blockedRanges.concat(takenRanges).some(function(r){ return t < r.end && slotEnd > r.start; });
+      if(!overlaps){ slots.push(t); }
+    }
+    if(slots.length === 0){
+      return '<span style="font-size:0.85rem; opacity:0.55; font-style:italic;">Nicio oră liberă în această zi.</span>';
+    }
+    return '<div style="display:flex; flex-wrap:wrap; gap:8px;">' +
+      slots.map(function(m){
+        var label = minToTime(m);
+        return '<button type="button" class="slot-suggest-btn" onclick="useSlotForNewBooking(\\''+dateStr+'\\', \\''+label+'\\')">'+label+'</button>';
+      }).join('') +
+    '</div>';
+  }
+
+  window.useSlotForNewBooking = function(dateStr, label){
+    document.getElementById('cdate').value = dateStr;
+    document.getElementById('ctime').value = label;
+    setView('list'); setListFilter('all');
+    document.getElementById('cname').focus();
+    renderSuggestedSlots();
+  };
 
   function updatePreview(){
     var name = document.getElementById('cname').value || 'Claire Dubois';
@@ -447,6 +517,11 @@ const AGENDA_HTML = `<!DOCTYPE html>
     document.getElementById(id).addEventListener('change', updatePreview);
   });
 
+  function todayStr(){
+    var now = new Date();
+    return now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  }
+
   function render(){
     var listArea = document.getElementById('listArea');
     var countLabel = document.getElementById('countLabel');
@@ -455,10 +530,19 @@ const AGENDA_HTML = `<!DOCTYPE html>
       listArea.innerHTML = '<div class="empty">Agenda e goală &mdash; adaugă prima programare din stânga.</div>';
       return;
     }
-    var sorted = clients.slice().sort(function(a,b){
+    var base = (currentView === 'list' && listFilter === 'today')
+      ? clients.filter(function(c){ return c.date === todayStr(); })
+      : clients;
+    var sorted = base.slice().sort(function(a,b){
       return new Date(a.date+'T'+a.time) - new Date(b.date+'T'+b.time);
     });
-    countLabel.textContent = sorted.length + (sorted.length === 1 ? ' programare' : ' programări');
+    if(sorted.length === 0){
+      countLabel.textContent = (listFilter === 'today') ? 'Nicio programare azi' : 'Nicio programare';
+      listArea.innerHTML = '<div class="empty">'+(listFilter === 'today' ? 'Nicio programare astăzi.' : 'Nicio programare încă.')+'</div>';
+      if(currentView === 'calendar'){ renderCalendar(); }
+      return;
+    }
+    countLabel.textContent = sorted.length + (sorted.length === 1 ? ' programare' : ' programări') + (listFilter === 'today' ? ' azi' : '');
     listArea.innerHTML = sorted.map(function(c){
       var hrs = hoursUntil(c.date, c.time);
       var threshold = c.reminder || 24;
