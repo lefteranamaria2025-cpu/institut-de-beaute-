@@ -94,6 +94,12 @@ const AGENDA_HTML = `<!DOCTYPE html>
   .att-btn.att-prezent.active{background:rgba(122,140,108,0.15); border-color:var(--ok); color:var(--ok);}
   .att-btn.att-absent.active{background:rgba(181,69,58,0.12); border-color:#b5453a; color:#b5453a;}
   .att-btn.att-in_asteptare.active{background:rgba(184,147,95,0.15); border-color:var(--gold); color:var(--gold);}
+  .slot-suggest-btn{
+    background:#fff; border:1px solid var(--line); color:var(--mocha); padding:7px 14px; border-radius:16px;
+    font-family:'Jost',sans-serif; font-size:0.82rem; cursor:pointer; transition:all .15s ease;
+  }
+  .slot-suggest-btn:hover{border-color:var(--gold);}
+  .slot-suggest-btn.chosen{background:var(--mocha); color:#fff; border-color:var(--mocha);}
   .remove-btn{
     background:none; border:none; color:var(--mocha); opacity:0.4; cursor:pointer; font-size:1.1rem;
     transition:opacity .2s ease;
@@ -232,6 +238,10 @@ const AGENDA_HTML = `<!DOCTYPE html>
           <label for="ctime">Ora</label>
           <input type="time" id="ctime" required>
         </div>
+      </div>
+      <div id="suggestedSlotsBox" style="margin:-6px 0 18px; display:none;">
+        <div style="font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.55; margin-bottom:8px;">Sloturi libere sugerate (poți alege sau scrie orice oră vrei)</div>
+        <div id="suggestedSlotsGrid" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
       </div>
       <div class="field">
         <label for="creminder">Reamintire trimisă cu</label>
@@ -633,11 +643,14 @@ const AGENDA_HTML = `<!DOCTYPE html>
     return t ? t.slice(0,5) : '';
   }
 
+  var ownerClosures = [];
+
   async function loadClosures(){
     try{
       var res = await fetch('/api/closures');
       var data = await res.json();
-      renderClosuresList(data.closures || []);
+      ownerClosures = data.closures || [];
+      renderClosuresList(ownerClosures);
     }catch(e){
       console.error('Nu s-au putut încărca blocările', e);
     }
@@ -710,6 +723,88 @@ const AGENDA_HTML = `<!DOCTYPE html>
         alert('Eroare la salvare. Încearcă din nou.');
       });
   });
+
+  // --- Sugestii de sloturi libere (informativ, nu restrictiv) ---
+  var SALON_HOURS = {
+    1: { open: '10:00', close: '18:30' }, // luni
+    2: { open: '10:00', close: '18:30' }, // marți
+    4: { open: '10:00', close: '18:30' }, // joi
+    5: { open: '10:00', close: '18:30' }, // vineri
+    6: { open: '10:00', close: '16:00' }  // sâmbătă
+    // 0 (duminică) și 3 (miercuri): închis
+  };
+  var SLOT_STEP = 30;
+
+  function timeToMin(t){ var p = t.split(':'); return parseInt(p[0],10)*60 + parseInt(p[1],10); }
+  function minToTime(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+
+  function renderSuggestedSlots(){
+    var dateEl = document.getElementById('cdate');
+    var box = document.getElementById('suggestedSlotsBox');
+    var grid = document.getElementById('suggestedSlotsGrid');
+    if(!dateEl.value){ box.style.display = 'none'; return; }
+
+    var day = new Date(dateEl.value + 'T00:00:00').getDay();
+    var hours = SALON_HOURS[day];
+    var duration = (parseInt(document.getElementById('cdureeH').value,10)||0)*60 + (parseInt(document.getElementById('cdureeM').value,10)||0);
+    if(!duration) duration = 60;
+
+    box.style.display = 'block';
+
+    if(!hours){
+      grid.innerHTML = '<span style="font-size:0.85rem; opacity:0.55; font-style:italic;">Salonul e închis în această zi (marcat ca atare în orarul oficial) &mdash; poți totuși nota o programare, dacă e cazul.</span>';
+      return;
+    }
+
+    var fullDayClosed = ownerClosures.some(function(cl){ return cl.closure_date === dateEl.value && !cl.start_time && !cl.end_time; });
+    if(fullDayClosed){
+      grid.innerHTML = '<span style="font-size:0.85rem; opacity:0.55; font-style:italic;">Ai blocat toată ziua aceasta.</span>';
+      return;
+    }
+
+    var blockedRanges = ownerClosures.filter(function(cl){
+      return cl.closure_date === dateEl.value && cl.start_time && cl.end_time;
+    }).map(function(cl){
+      return { start: timeToMin(cl.start_time.slice(0,5)), end: timeToMin(cl.end_time.slice(0,5)) };
+    });
+
+    var takenRanges = clients.filter(function(c){ return c.date === dateEl.value; }).map(function(c){
+      var start = timeToMin(c.time);
+      return { start: start, end: start + (c.duree || 60) };
+    });
+
+    var openMin = timeToMin(hours.open);
+    var closeMin = timeToMin(hours.close);
+    var lastStart = closeMin - duration;
+
+    var slots = [];
+    for(var t = openMin; t <= lastStart; t += SLOT_STEP){
+      var slotEnd = t + duration;
+      var overlaps = blockedRanges.concat(takenRanges).some(function(r){ return t < r.end && slotEnd > r.start; });
+      if(!overlaps){ slots.push(t); }
+    }
+
+    if(slots.length === 0){
+      grid.innerHTML = '<span style="font-size:0.85rem; opacity:0.55; font-style:italic;">Nu mai e niciun interval liber în ziua asta, cu durata aleasă &mdash; dar poți suprapune manual, dacă vrei.</span>';
+      return;
+    }
+
+    grid.innerHTML = slots.map(function(m){
+      var label = minToTime(m);
+      return '<button type="button" class="slot-suggest-btn" onclick="chooseSuggestedSlot(this, \\''+label+'\\')">'+label+'</button>';
+    }).join('');
+  }
+
+  window.chooseSuggestedSlot = function(btn, label){
+    document.getElementById('ctime').value = label;
+    document.querySelectorAll('.slot-suggest-btn').forEach(function(b){ b.classList.remove('chosen'); });
+    btn.classList.add('chosen');
+    updateDureeHint();
+  };
+
+  document.getElementById('cdate').addEventListener('change', renderSuggestedSlots);
+  document.getElementById('cdureeH').addEventListener('input', renderSuggestedSlots);
+  document.getElementById('cdureeM').addEventListener('input', renderSuggestedSlots);
 
   loadClosures();
   loadClients();
