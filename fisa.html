@@ -12,7 +12,7 @@
     --gold:#B8935F; --line:rgba(20,17,15,0.14);
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  body{background:var(--cream-deep); color:var(--mocha); font-family:'Jost',sans-serif; font-weight:300; line-height:1.65; padding:0 0 80px;}
+  body{background:var(--cream-deep); color:var(--mocha); font-family:'Jost',sans-serif; font-weight:300; line-height:1.6; padding:0 0 80px;}
   h1,h2{font-family:'Playfair Display',serif; font-weight:500;}
   .header{text-align:center; padding:50px 6% 30px;}
   .header .script{font-size:0.75rem; letter-spacing:0.28em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:10px;}
@@ -24,25 +24,24 @@
   .card h2{font-size:1.15rem; margin-bottom:20px;}
   .field{display:flex; flex-direction:column; gap:7px; margin-bottom:18px;}
   .field label{font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.6;}
-  .field input, .field textarea{
+  .field input, .field textarea, .field select{
     border:none; border-bottom:1px solid var(--line); background:transparent; padding:9px 2px;
     font-family:'Jost',sans-serif; font-size:0.98rem; color:var(--mocha); outline:none; resize:vertical;
   }
-  .field input:focus, .field textarea:focus{border-color:var(--gold);}
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--gold);}
   .row2{display:flex; gap:16px; flex-wrap:wrap;}
   .row2 .field{flex:1; min-width:200px;}
 
-  .consent-item{border:1px solid var(--line); border-radius:6px; padding:20px; margin-bottom:14px;}
-  .consent-item.checked{border-color:var(--gold);}
-  .consent-head{display:flex; align-items:flex-start; gap:12px; cursor:pointer;}
-  .consent-head input{margin-top:4px;}
-  .consent-head .label{font-family:'Playfair Display',serif; font-size:1.05rem;}
-  .consent-text{font-size:0.85rem; opacity:0.7; margin:12px 0 0 30px; display:none;}
-  .consent-item.checked .consent-text{display:block;}
-  .consent-signature{margin:14px 0 0 30px; display:none;}
-  .consent-item.checked .consent-signature{display:block;}
-  .consent-signature label{font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase; opacity:0.6; display:block; margin-bottom:6px;}
-  .consent-signature input{width:100%; border:none; border-bottom:1px solid var(--line); background:transparent; padding:8px 2px; font-family:'Jost',sans-serif; font-size:0.95rem;}
+  .check-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; margin-bottom:8px;}
+  @media(max-width:520px){ .check-grid{grid-template-columns:1fr;} }
+  .check-item{display:flex; align-items:flex-start; gap:8px; font-size:0.9rem;}
+  .check-item input{margin-top:3px;}
+  .subhead{font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold); margin:22px 0 10px;}
+  .subhead:first-child{margin-top:0;}
+
+  .consent-box{border:1px solid var(--line); border-radius:6px; padding:20px; margin-top:20px; background:var(--cream-deep);}
+  .consent-box p{font-size:0.85rem; opacity:0.75; margin-bottom:14px;}
+  .consent-box .field{margin-bottom:0;}
 
   .submit-btn{
     width:100%; background:var(--mocha); color:#fff; border:none; padding:16px; border-radius:4px;
@@ -56,6 +55,9 @@
     width:52px; height:52px; border-radius:50%; border:1.5px solid var(--gold); margin:0 auto 20px;
     display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:1.4rem;
   }
+
+  .category-section{display:none;}
+  .category-section.active{display:block;}
 </style>
 </head>
 <body>
@@ -93,86 +95,157 @@
         <input type="text" id="faddress" placeholder="Optionnel">
       </div>
     </div>
-    <div class="field">
-      <label for="fmedical">Allergies, contre-indications, traitements en cours</label>
-      <textarea id="fmedical" rows="3" placeholder="Ex. peau sensible, grossesse, traitement dermatologique en cours..."></textarea>
-    </div>
   </div>
 
   <div class="card">
-    <h2>Consentement par type de soin</h2>
-    <p style="font-size:0.85rem; opacity:0.65; margin-bottom:20px;">Cochez uniquement les soins concernés par votre visite. Le texte de consentement s'affiche une fois coché.</p>
+    <h2>Pour quelle procédure remplissez-vous cette fiche ?</h2>
+    <div class="field">
+      <label for="fcategory">Type de soin</label>
+      <select id="fcategory" required>
+        <option value="">Sélectionner</option>
+        <option value="visage">Soin du Visage</option>
+        <option value="laser">Épilation Laser</option>
+        <option value="corporel">Remodelage Corporel (Cryolipolyse)</option>
+        <option value="cire">Épilation à la Cire</option>
+        <option value="cils">Rehaussement Cils / Sourcils</option>
+        <option value="mains">Manucure / Pédicure</option>
+      </select>
+    </div>
+  </div>
 
-    <div class="consent-item" data-type="Épilation Laser">
-      <label class="consent-head">
-        <input type="checkbox" class="consent-check">
-        <span class="label">Épilation Laser</span>
-      </label>
-      <p class="consent-text">Je reconnais avoir été informée des risques et contre-indications liés à l'épilation laser (photosensibilisation, grossesse, exposition solaire récente, certains traitements médicamenteux). Je confirme avoir signalé toute contre-indication connue et j'accepte de recevoir ce soin en toute connaissance de cause.</p>
-      <div class="consent-signature">
-        <label>Nom complet (signature)</label>
-        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
-      </div>
+  <!-- SOIN DU VISAGE -->
+  <div class="card category-section" id="cat-visage">
+    <h2>Soin du Visage — fiche détaillée</h2>
+    <div class="subhead">Type de peau</div>
+    <div class="check-grid">
+      <label class="check-item"><input type="radio" name="skinType" value="Normale"> Normale</label>
+      <label class="check-item"><input type="radio" name="skinType" value="Sèche"> Sèche</label>
+      <label class="check-item"><input type="radio" name="skinType" value="Grasse"> Grasse</label>
+      <label class="check-item"><input type="radio" name="skinType" value="Mixte"> Mixte</label>
+      <label class="check-item"><input type="radio" name="skinType" value="Sensible"> Sensible</label>
+      <label class="check-item"><input type="radio" name="skinType" value="Mature"> Mature</label>
+    </div>
+    <div class="subhead">Antécédents</div>
+    <div class="field"><label>Allergies (cosmétiques, médicaments, aliments)</label><input type="text" id="v_allergies"></div>
+    <div class="field"><label>Affections dermatologiques connues</label><input type="text" id="v_dermato"></div>
+    <div class="field"><label>Interventions esthétiques antérieures</label><input type="text" id="v_interventions"></div>
+    <div class="field"><label>Médicaments ou compléments pris actuellement</label><input type="text" id="v_medicaments"></div>
+    <label class="check-item"><input type="checkbox" id="v_grossesse"> Grossesse / allaitement en cours</label>
+    <div class="field" style="margin-top:14px;"><label>Problèmes spécifiques à signaler</label><textarea id="v_specifique" rows="2"></textarea></div>
+
+    <div class="consent-box">
+      <p><strong>Consentement.</strong> Je déclare que les informations fournies sont exactes et complètes. J'ai été informée des bénéfices, des contre-indications et des éventuels effets secondaires du soin du visage demandé, et je donne mon consentement pour sa réalisation.</p>
+      <div class="field"><label>Nom complet (signature)</label><input type="text" class="signname" data-cat="visage" placeholder="Tapez votre nom complet"></div>
+    </div>
+  </div>
+
+  <!-- ÉPILATION LASER -->
+  <div class="card category-section" id="cat-laser">
+    <h2>Épilation Laser — fiche détaillée</h2>
+    <div class="subhead">Contre-indications</div>
+    <div class="check-grid">
+      <label class="check-item"><input type="checkbox" value="Grossesse"> Grossesse</label>
+      <label class="check-item"><input type="checkbox" value="Diabète"> Diabète</label>
+      <label class="check-item"><input type="checkbox" value="Épilepsie"> Épilepsie</label>
+      <label class="check-item"><input type="checkbox" value="Troubles hormonaux"> Troubles hormonaux</label>
+      <label class="check-item"><input type="checkbox" value="Affections dermatologiques actives"> Affections dermatologiques actives</label>
+      <label class="check-item"><input type="checkbox" value="Herpès actif"> Herpès actif</label>
+      <label class="check-item"><input type="checkbox" value="Cancer / antécédents oncologiques"> Cancer / antécédents oncologiques</label>
+      <label class="check-item"><input type="checkbox" value="Varices prononcées"> Varices prononcées</label>
+      <label class="check-item"><input type="checkbox" value="Bronzage récent / autobronzant"> Bronzage récent / autobronzant</label>
+      <label class="check-item"><input type="checkbox" value="Traitement Roaccutane / isotrétinoïne (6-12 derniers mois)"> Traitement Roaccutane / isotrétinoïne (6-12 derniers mois)</label>
+      <label class="check-item"><input type="checkbox" value="Implants métalliques dans la zone"> Implants métalliques dans la zone</label>
+      <label class="check-item"><input type="checkbox" value="Lésions, irritations ou infections locales"> Lésions, irritations ou infections locales</label>
+      <label class="check-item"><input type="checkbox" value="Maquillage permanent / tatouage dans la zone"> Maquillage permanent / tatouage dans la zone</label>
+      <label class="check-item"><input type="checkbox" value="Médicaments photosensibilisants"> Médicaments photosensibilisants</label>
+      <label class="check-item"><input type="checkbox" value="Affections cardiovasculaires"> Affections cardiovasculaires</label>
+    </div>
+    <div class="subhead">Évaluation peau / poil</div>
+    <div class="row2">
+      <div class="field"><label>Phototype Fitzpatrick</label><select id="l_phototype"><option></option><option>I</option><option>II</option><option>III</option><option>IV</option><option>V</option><option>VI</option></select></div>
+      <div class="field"><label>Couleur du poil</label><select id="l_couleur"><option></option><option>Blond</option><option>Châtain</option><option>Brun</option><option>Roux</option><option>Blanc/gris</option></select></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Épaisseur du poil</label><select id="l_epaisseur"><option></option><option>Fin</option><option>Moyen</option><option>Épais</option></select></div>
+      <div class="field"><label>Sensibilité cutanée</label><select id="l_sensibilite"><option></option><option>Faible</option><option>Moyenne</option><option>Élevée</option></select></div>
+    </div>
+    <div class="subhead">Zones à traiter</div>
+    <div class="check-grid">
+      <label class="check-item"><input type="checkbox" value="Moustache"> Moustache</label>
+      <label class="check-item"><input type="checkbox" value="Menton"> Menton</label>
+      <label class="check-item"><input type="checkbox" value="Visage"> Visage</label>
+      <label class="check-item"><input type="checkbox" value="Aisselles"> Aisselles</label>
+      <label class="check-item"><input type="checkbox" value="Bras"> Bras</label>
+      <label class="check-item"><input type="checkbox" value="Dos"> Dos</label>
+      <label class="check-item"><input type="checkbox" value="Abdomen"> Abdomen</label>
+      <label class="check-item"><input type="checkbox" value="Fessiers"> Fessiers</label>
+      <label class="check-item"><input type="checkbox" value="Maillot classique"> Maillot classique</label>
+      <label class="check-item"><input type="checkbox" value="Maillot intégral"> Maillot intégral</label>
+      <label class="check-item"><input type="checkbox" value="Jambes"> Jambes</label>
+      <label class="check-item"><input type="checkbox" value="Autre"> Autre</label>
     </div>
 
-    <div class="consent-item" data-type="Peeling / Soins Visage">
-      <label class="consent-head">
-        <input type="checkbox" class="consent-check">
-        <span class="label">Peeling / Soins Visage</span>
-      </label>
-      <p class="consent-text">Je reconnais avoir été informée des risques liés aux peelings et soins actifs du visage (rougeurs, sensibilité temporaire, réaction allergique possible) et des consignes post-soin à respecter. J'accepte de recevoir ce soin en toute connaissance de cause.</p>
-      <div class="consent-signature">
-        <label>Nom complet (signature)</label>
-        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
-      </div>
+    <div class="consent-box">
+      <p><strong>Consentement informé.</strong> Je déclare avoir reçu des explications claires sur la procédure d'épilation au laser diode, son mode d'action, ses bénéfices et ses effets secondaires possibles (rougeurs, sensations de chaleur, œdème folliculaire, sensibilité locale, changement temporaire de pigmentation dans de rares cas). J'ai communiqué correctement mon historique médical et je n'ai aucune contre-indication non signalée ci-dessus. Je comprends que le résultat dépend de plusieurs facteurs (type de peau, hormones, zone traitée) et qu'un nombre de séances peut être nécessaire.</p>
+      <div class="field"><label>Nom complet (signature)</label><input type="text" class="signname" data-cat="laser" placeholder="Tapez votre nom complet"></div>
     </div>
+  </div>
 
-    <div class="consent-item" data-type="Remodelage Corporel">
-      <label class="consent-head">
-        <input type="checkbox" class="consent-check">
-        <span class="label">Remodelage Corporel</span>
-      </label>
-      <p class="consent-text">Je reconnais avoir été informée des contre-indications aux soins de remodelage corporel (grossesse, pathologies cardiaques, implants métalliques, troubles vasculaires) et je confirme ne pas être concernée par ces contre-indications, ou en avoir informé l'institut.</p>
-      <div class="consent-signature">
-        <label>Nom complet (signature)</label>
-        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
-      </div>
+  <!-- REMODELAGE CORPOREL / CRYOLIPOLYSE -->
+  <div class="card category-section" id="cat-corporel">
+    <h2>Remodelage Corporel — fiche détaillée</h2>
+    <div class="subhead">Antécédents médicaux</div>
+    <div class="check-grid">
+      <label class="check-item"><input type="checkbox" value="Maladies cardiovasculaires"> Maladies cardiovasculaires</label>
+      <label class="check-item"><input type="checkbox" value="Diabète"> Diabète</label>
+      <label class="check-item"><input type="checkbox" value="Troubles de la coagulation"> Troubles de la coagulation</label>
+      <label class="check-item"><input type="checkbox" value="Hernie ombilicale ou inguinale"> Hernie ombilicale ou inguinale</label>
+      <label class="check-item"><input type="checkbox" value="Maladies dermatologiques"> Maladies dermatologiques</label>
+      <label class="check-item"><input type="checkbox" value="Grossesse / allaitement"> Grossesse / allaitement</label>
     </div>
-
-    <div class="consent-item" data-type="Épilation à la Cire">
-      <label class="consent-head">
-        <input type="checkbox" class="consent-check">
-        <span class="label">Épilation à la Cire</span>
-      </label>
-      <p class="consent-text">Je reconnais avoir été informée des risques liés à l'épilation à la cire (rougeurs, sensibilité, réaction possible sur peau irritée) et je confirme ne pas avoir de contre-indication connue.</p>
-      <div class="consent-signature">
-        <label>Nom complet (signature)</label>
-        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
-      </div>
+    <div class="field"><label>Allergies / autres affections</label><input type="text" id="c_allergies"></div>
+    <div class="field"><label>Médicaments pris actuellement</label><input type="text" id="c_medicaments"></div>
+    <div class="subhead">Zones ciblées</div>
+    <div class="check-grid">
+      <label class="check-item"><input type="checkbox" value="Abdomen"> Abdomen</label>
+      <label class="check-item"><input type="checkbox" value="Flancs"> Flancs</label>
+      <label class="check-item"><input type="checkbox" value="Cuisses"> Cuisses</label>
+      <label class="check-item"><input type="checkbox" value="Bras"> Bras</label>
+      <label class="check-item"><input type="checkbox" value="Dos"> Dos</label>
+      <label class="check-item"><input type="checkbox" value="Autre"> Autre</label>
     </div>
+    <div class="field" style="margin-top:14px;"><label>Objectifs de la cliente</label><textarea id="c_objectifs" rows="2"></textarea></div>
 
-    <div class="consent-item" data-type="Rehaussement Cils et Sourcils">
-      <label class="consent-head">
-        <input type="checkbox" class="consent-check">
-        <span class="label">Rehaussement Cils et Sourcils</span>
-      </label>
-      <p class="consent-text">Je reconnais avoir été informée des risques liés au rehaussement de cils/sourcils (allergie aux produits utilisés, sensibilité oculaire) et je confirme ne pas avoir de contre-indication connue.</p>
-      <div class="consent-signature">
-        <label>Nom complet (signature)</label>
-        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
-      </div>
+    <div class="consent-box">
+      <p><strong>Consentement.</strong> Je déclare avoir été informée que ce soin (cryolipolyse / remodelage) est une technique non invasive visant à réduire les cellules graisseuses localisées, que les résultats varient selon les personnes et apparaissent progressivement sur plusieurs semaines, et j'ai été informée des contre-indications et effets secondaires possibles (rougeur, engourdissement temporaire, sensibilité locale). Je confirme ne pas être concernée par les contre-indications ci-dessus, ou en avoir informé l'institut.</p>
+      <div class="field"><label>Nom complet (signature)</label><input type="text" class="signname" data-cat="corporel" placeholder="Tapez votre nom complet"></div>
     </div>
+  </div>
 
-    <div class="consent-item" data-type="Manucure / Pédicure">
-      <label class="consent-head">
-        <input type="checkbox" class="consent-check">
-        <span class="label">Manucure / Pédicure</span>
-      </label>
-      <p class="consent-text">Je confirme ne pas avoir d'infection cutanée ou unguéale active et j'accepte de recevoir ce soin en toute connaissance de cause.</p>
-      <div class="consent-signature">
-        <label>Nom complet (signature)</label>
-        <input type="text" class="consent-signname" placeholder="Tapez votre nom complet">
-      </div>
+  <!-- CATÉGORIES SIMPLES -->
+  <div class="card category-section" id="cat-cire">
+    <h2>Épilation à la Cire — consentement</h2>
+    <p style="font-size:0.9rem; opacity:0.7; margin-bottom:14px;">Je confirme ne pas avoir de peau irritée, blessée ou infectée dans la zone à traiter, et j'accepte de recevoir ce soin en toute connaissance de cause.</p>
+    <div class="field"><label>Allergies / peau sensible à signaler</label><input type="text" id="cire_notes"></div>
+    <div class="consent-box">
+      <div class="field"><label>Nom complet (signature)</label><input type="text" class="signname" data-cat="cire" placeholder="Tapez votre nom complet"></div>
+    </div>
+  </div>
+
+  <div class="card category-section" id="cat-cils">
+    <h2>Rehaussement Cils / Sourcils — consentement</h2>
+    <p style="font-size:0.9rem; opacity:0.7; margin-bottom:14px;">Je reconnais avoir été informée des risques possibles (allergie aux produits utilisés, sensibilité oculaire) et je confirme ne pas avoir de contre-indication connue.</p>
+    <div class="field"><label>Allergies connues (produits cosmétiques, colles)</label><input type="text" id="cils_notes"></div>
+    <div class="consent-box">
+      <div class="field"><label>Nom complet (signature)</label><input type="text" class="signname" data-cat="cils" placeholder="Tapez votre nom complet"></div>
+    </div>
+  </div>
+
+  <div class="card category-section" id="cat-mains">
+    <h2>Manucure / Pédicure — consentement</h2>
+    <p style="font-size:0.9rem; opacity:0.7; margin-bottom:14px;">Je confirme ne pas avoir d'infection cutanée ou unguéale active et j'accepte de recevoir ce soin en toute connaissance de cause.</p>
+    <div class="consent-box">
+      <div class="field"><label>Nom complet (signature)</label><input type="text" class="signname" data-cat="mains" placeholder="Tapez votre nom complet"></div>
     </div>
   </div>
 
@@ -187,26 +260,81 @@
 </div>
 
 <script>
-  document.querySelectorAll('.consent-check').forEach(function(cb){
-    cb.addEventListener('change', function(){
-      cb.closest('.consent-item').classList.toggle('checked', cb.checked);
-    });
+  var CATEGORY_LABELS = {
+    visage: 'Soin du Visage',
+    laser: 'Épilation Laser',
+    corporel: 'Remodelage Corporel',
+    cire: 'Épilation à la Cire',
+    cils: 'Rehaussement Cils / Sourcils',
+    mains: 'Manucure / Pédicure'
+  };
+
+  document.getElementById('fcategory').addEventListener('change', function(){
+    document.querySelectorAll('.category-section').forEach(function(s){ s.classList.remove('active'); });
+    if(this.value){
+      var section = document.getElementById('cat-' + this.value);
+      if(section){ section.classList.add('active'); }
+    }
   });
+
+  function collectCheckedValues(sectionEl){
+    var vals = [];
+    if(!sectionEl) return vals;
+    sectionEl.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb){
+      if(cb.value) vals.push(cb.value);
+    });
+    return vals;
+  }
 
   document.getElementById('fisaForm').addEventListener('submit', function(e){
     e.preventDefault();
 
-    var consents = [];
-    var missingSignature = false;
-    document.querySelectorAll('.consent-item.checked').forEach(function(item){
-      var signName = item.querySelector('.consent-signname').value.trim();
-      if(!signName){ missingSignature = true; }
-      consents.push({ treatmentType: item.getAttribute('data-type'), signedName: signName });
-    });
+    var category = document.getElementById('fcategory').value;
+    if(!category){ alert('Merci de sélectionner le type de soin.'); return; }
 
-    if(missingSignature){
-      alert('Merci de taper votre nom complet pour valider chaque consentement coché.');
+    var section = document.getElementById('cat-' + category);
+    var signInput = section.querySelector('.signname');
+    var signedName = signInput ? signInput.value.trim() : '';
+    if(!signedName){
+      alert('Merci de taper votre nom complet pour valider le consentement.');
       return;
+    }
+
+    var details = {};
+    if(category === 'visage'){
+      var skinTypeEl = document.querySelector('input[name="skinType"]:checked');
+      details = {
+        typePeau: skinTypeEl ? skinTypeEl.value : null,
+        allergies: document.getElementById('v_allergies').value,
+        dermatologiques: document.getElementById('v_dermato').value,
+        interventionsAnterieures: document.getElementById('v_interventions').value,
+        medicaments: document.getElementById('v_medicaments').value,
+        grossesse: document.getElementById('v_grossesse').checked,
+        specifique: document.getElementById('v_specifique').value
+      };
+    } else if(category === 'laser'){
+      var grids = section.querySelectorAll('.check-grid');
+      details = {
+        contreIndications: collectCheckedValues(grids[0]),
+        phototype: document.getElementById('l_phototype').value,
+        couleurPoil: document.getElementById('l_couleur').value,
+        epaisseurPoil: document.getElementById('l_epaisseur').value,
+        sensibilite: document.getElementById('l_sensibilite').value,
+        zones: collectCheckedValues(grids[1])
+      };
+    } else if(category === 'corporel'){
+      var grids2 = section.querySelectorAll('.check-grid');
+      details = {
+        antecedents: collectCheckedValues(grids2[0]),
+        allergies: document.getElementById('c_allergies').value,
+        medicaments: document.getElementById('c_medicaments').value,
+        zones: collectCheckedValues(grids2[1]),
+        objectifs: document.getElementById('c_objectifs').value
+      };
+    } else if(category === 'cire'){
+      details = { notes: document.getElementById('cire_notes').value };
+    } else if(category === 'cils'){
+      details = { notes: document.getElementById('cils_notes').value };
     }
 
     var payload = {
@@ -215,8 +343,7 @@
       email: document.getElementById('femail').value,
       birthDate: document.getElementById('fbirth').value,
       address: document.getElementById('faddress').value,
-      medicalNotes: document.getElementById('fmedical').value,
-      consents: consents
+      consents: [{ treatmentType: CATEGORY_LABELS[category], signedName: signedName, details: details }]
     };
 
     var btn = e.target.querySelector('.submit-btn');
