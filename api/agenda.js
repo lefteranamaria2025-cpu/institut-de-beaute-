@@ -464,6 +464,8 @@ const AGENDA_HTML = `<!DOCTYPE html>
         '<div style="font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:10px;">Ore disponibile (durată implicită: 1h)</div>' +
         slotsHtml +
       '</div>';
+
+    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   window.showDay = showDay;
 
