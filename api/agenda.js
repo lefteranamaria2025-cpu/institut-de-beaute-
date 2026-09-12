@@ -86,6 +86,14 @@ const AGENDA_HTML = `<!DOCTYPE html>
   .badge.pending{background:rgba(184,147,95,0.15); color:var(--gold);}
   .badge.sent{background:rgba(122,140,108,0.15); color:var(--ok);}
   .badge .dot{width:6px; height:6px; border-radius:50%; background:currentColor;}
+  .att-btn{
+    background:#fff; border:1px solid var(--line); color:var(--mocha); opacity:0.55;
+    padding:4px 10px; border-radius:14px; font-size:0.7rem; cursor:pointer; font-family:'Jost',sans-serif;
+  }
+  .att-btn.active{opacity:1; font-weight:500;}
+  .att-btn.att-prezent.active{background:rgba(122,140,108,0.15); border-color:var(--ok); color:var(--ok);}
+  .att-btn.att-absent.active{background:rgba(181,69,58,0.12); border-color:#b5453a; color:#b5453a;}
+  .att-btn.att-in_asteptare.active{background:rgba(184,147,95,0.15); border-color:var(--gold); color:var(--gold);}
   .remove-btn{
     background:none; border:none; color:var(--mocha); opacity:0.4; cursor:pointer; font-size:1.1rem;
     transition:opacity .2s ease;
@@ -208,8 +216,11 @@ const AGENDA_HTML = `<!DOCTYPE html>
         </select>
       </div>
       <div class="field" id="dureeField">
-        <label for="cduree">Durată (minute) &mdash; poți modifica</label>
-        <input type="number" id="cduree" min="5" step="5" placeholder="Ex. 60" value="60">
+        <label>Durată &mdash; poți modifica</label>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="number" id="cdureeH" min="0" max="12" placeholder="0" value="1" style="width:70px;"><span style="font-size:0.85rem; opacity:0.6;">ore</span>
+          <input type="number" id="cdureeM" min="0" max="55" step="5" placeholder="0" value="0" style="width:70px;"><span style="font-size:0.85rem; opacity:0.6;">min</span>
+        </div>
         <div id="dureeHint" style="font-size:0.78rem; color:var(--gold); margin-top:4px;"></div>
       </div>
       <div class="row2">
@@ -397,6 +408,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
           '<div class="client-info">' +
             '<div class="client-name">'+c.name+'</div>' +
             '<div class="client-meta">'+c.service+' &middot; '+c.phone+(c.duree ? ' &middot; '+fmtDuree(c.duree) : '')+'</div>' +
+            attendanceButtonsHtml(c.id, c.attendance) +
           '</div>' +
           '<div class="client-when"><div class="date">'+c.time+'</div>' +
           '<button class="remove-btn" onclick="removeClient(\\''+c.id+'\\')">&times; șterge</button></div>' +
@@ -447,6 +459,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
           '<div class="client-name">'+c.name+'</div>' +
           '<div class="client-meta">'+c.service+' &middot; '+c.phone+(c.duree ? ' &middot; '+fmtDuree(c.duree) : '')+'</div>' +
           '<div class="badges-row"><span class="badge sent"><span class="dot"></span>confirmare trimisă</span>' + badge + '</div>' +
+          attendanceButtonsHtml(c.id, c.attendance) +
         '</div>' +
         '<div class="client-when">' +
           '<div class="date">'+fmtDate(c.date)+'</div>' +
@@ -458,6 +471,33 @@ const AGENDA_HTML = `<!DOCTYPE html>
     if(currentView === 'calendar'){ renderCalendar(); }
   }
 
+  function attendanceButtonsHtml(id, attendance){
+    attendance = attendance || 'in_asteptare';
+    function btn(status, label){
+      var active = attendance === status ? ' active' : '';
+      return '<button type="button" class="att-btn att-'+status+active+'" onclick="setAttendance(\\''+id+'\\', \\''+status+'\\')">'+label+'</button>';
+    }
+    return '<div class="att-row" style="margin-top:8px; display:flex; gap:6px;">' +
+      btn('prezent', '&#10003; A venit') +
+      btn('absent', '&times; Nu a venit') +
+      btn('in_asteptare', '? Încă neștiut') +
+    '</div>';
+  }
+
+  async function setAttendance(id, status){
+    try{
+      await fetch('/api/bookings?id=' + encodeURIComponent(id), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attendance: status })
+      });
+    }catch(e){
+      console.error('Nu s-a putut actualiza prezența', e);
+    }
+    await loadClients();
+  }
+  window.setAttendance = setAttendance;
+
   function rowToClient(r){
     return {
       id: r.id,
@@ -468,7 +508,8 @@ const AGENDA_HTML = `<!DOCTYPE html>
       date: r.booking_date,
       time: (r.booking_time || '').slice(0,5),
       reminder: r.reminder_hours,
-      duree: r.duree_min
+      duree: r.duree_min,
+      attendance: r.attendance || 'in_asteptare'
     };
   }
 
@@ -498,7 +539,8 @@ const AGENDA_HTML = `<!DOCTYPE html>
   document.getElementById('addForm').addEventListener('submit', function(e){
     e.preventDefault();
     var serviceSelect = document.getElementById('cservice');
-    var dureeInput = document.getElementById('cduree');
+    var totalDuree = (parseInt(document.getElementById('cdureeH').value, 10) || 0) * 60 +
+                      (parseInt(document.getElementById('cdureeM').value, 10) || 0);
     var entry = {
       name: document.getElementById('cname').value,
       phone: document.getElementById('cphone').value,
@@ -507,7 +549,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
       date: document.getElementById('cdate').value,
       time: document.getElementById('ctime').value,
       reminderHours: parseInt(document.getElementById('creminder').value, 10),
-      dureeMin: dureeInput.value ? parseInt(dureeInput.value, 10) : null
+      dureeMin: totalDuree || null
     };
     var addBtn = e.target.querySelector('.add-btn');
     var originalText = addBtn.textContent;
@@ -530,7 +572,8 @@ const AGENDA_HTML = `<!DOCTYPE html>
         loadClients();
         e.target.reset();
         document.getElementById('previewBox').style.display = 'none';
-        document.getElementById('cduree').value = '60';
+        document.getElementById('cdureeH').value = '1';
+        document.getElementById('cdureeM').value = '0';
         document.getElementById('dureeHint').textContent = '';
         addBtn.textContent = '✓ Programare adăugată';
         setTimeout(function(){ addBtn.textContent = originalText; }, 2600);
@@ -551,10 +594,11 @@ const AGENDA_HTML = `<!DOCTYPE html>
   }
 
   function updateDureeHint(){
-    var dureeInput = document.getElementById('cduree');
+    var hInput = document.getElementById('cdureeH');
+    var mInput = document.getElementById('cdureeM');
     var hint = document.getElementById('dureeHint');
     var startTime = document.getElementById('ctime').value;
-    var minutes = parseInt(dureeInput.value, 10);
+    var minutes = (parseInt(hInput.value, 10) || 0) * 60 + (parseInt(mInput.value, 10) || 0);
     if(startTime && minutes){
       var start = new Date('2000-01-01T' + startTime);
       var end = new Date(start.getTime() + minutes*60000);
@@ -568,16 +612,18 @@ const AGENDA_HTML = `<!DOCTYPE html>
   document.getElementById('cservice').addEventListener('change', function(){
     var opt = this.selectedOptions[0];
     var duree = opt ? opt.getAttribute('data-duree') : null;
-    var dureeInput = document.getElementById('cduree');
     // Pre-fill with the standard duration if this service has one — but the
-    // field stays editable, so any duration can be chosen for any service.
+    // fields stay editable, so any duration can be chosen for any service.
     if(duree){
-      dureeInput.value = duree;
+      var totalMin = parseInt(duree, 10);
+      document.getElementById('cdureeH').value = Math.floor(totalMin / 60);
+      document.getElementById('cdureeM').value = totalMin % 60;
     }
     updateDureeHint();
   });
 
-  document.getElementById('cduree').addEventListener('input', updateDureeHint);
+  document.getElementById('cdureeH').addEventListener('input', updateDureeHint);
+  document.getElementById('cdureeM').addEventListener('input', updateDureeHint);
   document.getElementById('ctime').addEventListener('change', function(){
     document.getElementById('cservice').dispatchEvent(new Event('change'));
   });
