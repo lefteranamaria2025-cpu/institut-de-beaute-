@@ -207,9 +207,10 @@ const AGENDA_HTML = `<!DOCTYPE html>
           </optgroup>
         </select>
       </div>
-      <div class="field" id="dureeField" style="display:none;">
-        <label>Durată estimată</label>
-        <div id="dureeDisplay" style="padding:9px 2px; font-size:0.98rem; color:var(--gold); font-style:italic; font-family:'Playfair Display',serif;"></div>
+      <div class="field" id="dureeField">
+        <label for="cduree">Durată (minute) &mdash; poți modifica</label>
+        <input type="number" id="cduree" min="5" step="5" placeholder="Ex. 60" value="60">
+        <div id="dureeHint" style="font-size:0.78rem; color:var(--gold); margin-top:4px;"></div>
       </div>
       <div class="row2">
         <div class="field">
@@ -497,7 +498,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
   document.getElementById('addForm').addEventListener('submit', function(e){
     e.preventDefault();
     var serviceSelect = document.getElementById('cservice');
-    var dureeAttr = serviceSelect.selectedOptions[0].getAttribute('data-duree');
+    var dureeInput = document.getElementById('cduree');
     var entry = {
       name: document.getElementById('cname').value,
       phone: document.getElementById('cphone').value,
@@ -506,7 +507,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
       date: document.getElementById('cdate').value,
       time: document.getElementById('ctime').value,
       reminderHours: parseInt(document.getElementById('creminder').value, 10),
-      dureeMin: dureeAttr ? parseInt(dureeAttr, 10) : null
+      dureeMin: dureeInput.value ? parseInt(dureeInput.value, 10) : null
     };
     var addBtn = e.target.querySelector('.add-btn');
     var originalText = addBtn.textContent;
@@ -529,7 +530,8 @@ const AGENDA_HTML = `<!DOCTYPE html>
         loadClients();
         e.target.reset();
         document.getElementById('previewBox').style.display = 'none';
-        document.getElementById('dureeField').style.display = 'none';
+        document.getElementById('cduree').value = '60';
+        document.getElementById('dureeHint').textContent = '';
         addBtn.textContent = '✓ Programare adăugată';
         setTimeout(function(){ addBtn.textContent = originalText; }, 2600);
       })
@@ -548,27 +550,34 @@ const AGENDA_HTML = `<!DOCTYPE html>
     return m+'min';
   }
 
+  function updateDureeHint(){
+    var dureeInput = document.getElementById('cduree');
+    var hint = document.getElementById('dureeHint');
+    var startTime = document.getElementById('ctime').value;
+    var minutes = parseInt(dureeInput.value, 10);
+    if(startTime && minutes){
+      var start = new Date('2000-01-01T' + startTime);
+      var end = new Date(start.getTime() + minutes*60000);
+      var endStr = String(end.getHours()).padStart(2,'0')+':'+String(end.getMinutes()).padStart(2,'0');
+      hint.textContent = fmtDuree(minutes) + ' (' + startTime + ' \u2192 ' + endStr + ')';
+    } else {
+      hint.textContent = '';
+    }
+  }
+
   document.getElementById('cservice').addEventListener('change', function(){
     var opt = this.selectedOptions[0];
     var duree = opt ? opt.getAttribute('data-duree') : null;
-    var field = document.getElementById('dureeField');
-    var display = document.getElementById('dureeDisplay');
+    var dureeInput = document.getElementById('cduree');
+    // Pre-fill with the standard duration if this service has one — but the
+    // field stays editable, so any duration can be chosen for any service.
     if(duree){
-      var startTime = document.getElementById('ctime').value;
-      var durText = fmtDuree(parseInt(duree,10));
-      if(startTime){
-        var start = new Date('2000-01-01T' + startTime);
-        var end = new Date(start.getTime() + parseInt(duree,10)*60000);
-        var endStr = String(end.getHours()).padStart(2,'0')+':'+String(end.getMinutes()).padStart(2,'0');
-        display.textContent = durText + ' (' + startTime + ' \\u2192 ' + endStr + ')';
-      } else {
-        display.textContent = durText;
-      }
-      field.style.display = 'flex';
-    } else {
-      field.style.display = 'none';
+      dureeInput.value = duree;
     }
+    updateDureeHint();
   });
+
+  document.getElementById('cduree').addEventListener('input', updateDureeHint);
   document.getElementById('ctime').addEventListener('change', function(){
     document.getElementById('cservice').dispatchEvent(new Event('change'));
   });
