@@ -79,7 +79,12 @@ export default async function handler(req, res) {
 
     if (Array.isArray(consents) && consents.length > 0) {
       const rows = consents.map(function (c) {
-        return { client_id: clientId, treatment_type: c.treatmentType, signed_name: c.signedName };
+        return {
+          client_id: clientId,
+          treatment_type: c.treatmentType,
+          signed_name: c.signedName,
+          details: c.details || null
+        };
       });
       const { error: consentError } = await supabase.from('consents').insert(rows);
       if (consentError) return res.status(500).json({ error: consentError.message });

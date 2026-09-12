@@ -110,12 +110,16 @@ const CLIENTI_HTML = `<!DOCTYPE html>
     container.innerHTML = list.map(function(c){
       var consentsHtml = (c.consents && c.consents.length > 0)
         ? c.consents.map(function(co){
-            return '<span class="consent-badge">&#10003; ' + co.treatment_type + '</span>';
+            var detailsHtml = renderConsentDetails(co.details);
+            return '<div style="margin-bottom:14px;">' +
+              '<span class="consent-badge">&#10003; ' + co.treatment_type + ' &middot; semnat de ' + co.signed_name + ' &middot; ' + fmtDate((co.signed_at||'').slice(0,10)) + '</span>' +
+              detailsHtml +
+            '</div>';
           }).join('')
         : '<div class="no-consents">Niciun consimțământ semnat încă.</div>';
 
       return '<div class="client-card" data-id="'+c.id+'">' +
-        '<div class="client-card-head" onclick="toggleCard(\\'' + c.id + '\\')">' +
+        '<div class="client-card-head" onclick="toggleCard(\\''+c.id+'\\')">' +
           '<div>' +
             '<div class="client-name">'+c.name+'</div>' +
             '<div class="client-meta">'+(c.phone||'—')+' &middot; '+(c.email||'—')+'</div>' +
@@ -127,16 +131,101 @@ const CLIENTI_HTML = `<!DOCTYPE html>
           '<div class="detail-row"><span class="label">Adresă</span><span>'+(c.address||'—')+'</span></div>' +
           '<div class="detail-row"><span class="label">Notițe medicale</span><span>'+(c.medical_notes||'—')+'</span></div>' +
           '<div class="detail-row"><span class="label">Fișă creată</span><span>'+fmtDate((c.created_at||'').slice(0,10))+'</span></div>' +
-          '<div style="margin-top:12px;">'+consentsHtml+'</div>' +
-          '<button class="delete-btn" onclick="event.stopPropagation(); removeClient(\\'' + c.id + '\\')">&times; șterge dosarul</button>' +
+          '<div style="margin-top:14px;"><strong style="font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold);">Consimțăminte semnate</strong></div>' +
+          '<div style="margin-top:10px;">'+consentsHtml+'</div>' +
+          '<div class="sessions-block" style="margin-top:22px; padding-top:18px; border-top:1px dashed var(--line);">' +
+            '<strong style="font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold);">Istoric ședințe</strong>' +
+            '<div id="sessions-'+c.id+'" style="margin-top:12px;"><span style="font-size:0.85rem; opacity:0.5;">Se încarcă...</span></div>' +
+            '<form onsubmit="return addSession(event, \\''+c.id+'\\')" style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">' +
+              '<div><label style="font-size:0.68rem; text-transform:uppercase; opacity:0.55; display:block; margin-bottom:4px;">Data</label><input type="date" required style="border:1px solid var(--line); border-radius:4px; padding:6px 8px; font-family:inherit;" class="s-date"></div>' +
+              '<div><label style="font-size:0.68rem; text-transform:uppercase; opacity:0.55; display:block; margin-bottom:4px;">Procedură</label><input type="text" required placeholder="Ex. Epilare laser axilă" style="border:1px solid var(--line); border-radius:4px; padding:6px 8px; font-family:inherit; min-width:180px;" class="s-proc"></div>' +
+              '<div style="flex:1; min-width:160px;"><label style="font-size:0.68rem; text-transform:uppercase; opacity:0.55; display:block; margin-bottom:4px;">Notițe</label><input type="text" placeholder="Observații, rezultate..." style="border:1px solid var(--line); border-radius:4px; padding:6px 8px; font-family:inherit; width:100%;" class="s-notes"></div>' +
+              '<button type="submit" style="background:var(--mocha); color:#fff; border:none; padding:8px 16px; border-radius:20px; font-size:0.78rem; cursor:pointer;">Adaugă</button>' +
+            '</form>' +
+          '</div>' +
+          '<button class="delete-btn" onclick="event.stopPropagation(); removeClient(\\''+c.id+'\\')">&times; șterge dosarul</button>' +
         '</div>' +
       '</div>';
     }).join('');
   }
 
+  function renderConsentDetails(details){
+    if(!details) return '';
+    var lines = [];
+    Object.keys(details).forEach(function(key){
+      var val = details[key];
+      if(val === null || val === undefined || val === '' || (Array.isArray(val) && val.length === 0)){ return; }
+      if(Array.isArray(val)){ val = val.join(', '); }
+      if(val === true){ val = 'Da'; }
+      if(val === false){ return; }
+      lines.push('<div style="font-size:0.82rem; opacity:0.75; margin:3px 0 3px 12px;"><em style="opacity:0.6;">'+key+':</em> '+val+'</div>');
+    });
+    return lines.join('');
+  }
+
+  var loadedSessions = {};
+
+  async function loadSessionsFor(clientId){
+    var box = document.getElementById('sessions-'+clientId);
+    try{
+      var res = await fetch('/api/sessions?clientId=' + encodeURIComponent(clientId));
+      var data = await res.json();
+      var sessions = data.sessions || [];
+      loadedSessions[clientId] = sessions;
+      renderSessionsBox(clientId, sessions);
+    }catch(e){
+      console.error(e);
+      if(box) box.innerHTML = '<span style="font-size:0.85rem; opacity:0.5;">Eroare la încărcare.</span>';
+    }
+  }
+
+  function renderSessionsBox(clientId, sessions){
+    var box = document.getElementById('sessions-'+clientId);
+    if(!box) return;
+    if(sessions.length === 0){
+      box.innerHTML = '<span style="font-size:0.85rem; opacity:0.5; font-style:italic;">Nicio ședință notată încă.</span>';
+      return;
+    }
+    box.innerHTML = sessions.map(function(s){
+      return '<div style="display:flex; justify-content:space-between; gap:10px; font-size:0.85rem; padding:6px 0; border-bottom:1px dashed var(--line);">' +
+        '<span><strong>'+fmtDate(s.session_date)+'</strong> &middot; '+s.procedure_type+(s.notes ? ' &middot; '+s.notes : '')+'</span>' +
+        '<button onclick="removeSession(\\''+s.id+'\\', \\''+clientId+'\\')" style="background:none; border:none; color:#b5453a; opacity:0.5; cursor:pointer;">&times;</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  window.addSession = function(e, clientId){
+    e.preventDefault();
+    var form = e.target;
+    var payload = {
+      clientId: clientId,
+      date: form.querySelector('.s-date').value,
+      procedureType: form.querySelector('.s-proc').value,
+      notes: form.querySelector('.s-notes').value
+    };
+    fetch('/api/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(){ form.reset(); loadSessionsFor(clientId); })
+      .catch(function(err){ console.error(err); alert('Eroare la salvare.'); });
+    return false;
+  };
+
+  window.removeSession = function(id, clientId){
+    fetch('/api/sessions?id=' + encodeURIComponent(id), { method: 'DELETE' })
+      .then(function(){ loadSessionsFor(clientId); })
+      .catch(function(err){ console.error(err); });
+  };
+
   function toggleCard(id){
     var card = document.querySelector('.client-card[data-id="'+id+'"]');
-    if(card){ card.classList.toggle('open'); }
+    if(card){
+      card.classList.toggle('open');
+      if(card.classList.contains('open') && !loadedSessions[id]){
+        loadSessionsFor(id);
+      }
+    }
   }
   window.toggleCard = toggleCard;
 
