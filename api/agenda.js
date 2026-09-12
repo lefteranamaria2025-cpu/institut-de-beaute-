@@ -166,6 +166,7 @@ const AGENDA_HTML = `<!DOCTYPE html>
         <label for="cname">Nume clientă</label>
         <input type="text" id="cname" required placeholder="Ex. Claire Dubois">
       </div>
+      <div id="clientHistoryBox" style="display:none; margin:-8px 0 18px; padding:14px 16px; background:var(--cream-deep); border-radius:6px; border:1px solid var(--line);"></div>
       <div class="field">
         <label for="cphone">Telefon</label>
         <input type="tel" id="cphone" required placeholder="06 12 34 56 78">
@@ -805,6 +806,53 @@ const AGENDA_HTML = `<!DOCTYPE html>
   document.getElementById('cdate').addEventListener('change', renderSuggestedSlots);
   document.getElementById('cdureeH').addEventListener('input', renderSuggestedSlots);
   document.getElementById('cdureeM').addEventListener('input', renderSuggestedSlots);
+
+  // --- Istoric clientă (după nume) ---
+  var historyAutofillDone = false;
+
+  function attendanceLabel(a){
+    if(a === 'prezent') return '<span style="color:var(--ok);">&#10003; a venit</span>';
+    if(a === 'absent') return '<span style="color:#b5453a;">&times; nu a venit</span>';
+    return '<span style="color:var(--gold);">? neștiut</span>';
+  }
+
+  document.getElementById('cname').addEventListener('input', function(){
+    var query = this.value.trim().toLowerCase();
+    var box = document.getElementById('clientHistoryBox');
+    if(query.length < 2){ box.style.display = 'none'; historyAutofillDone = false; return; }
+
+    var matches = clients.filter(function(c){ return (c.name||'').toLowerCase().indexOf(query) !== -1; });
+    if(matches.length === 0){ box.style.display = 'none'; historyAutofillDone = false; return; }
+
+    matches.sort(function(a,b){ return new Date(b.date+'T'+b.time) - new Date(a.date+'T'+a.time); });
+
+    var prezent = matches.filter(function(c){ return c.attendance === 'prezent'; }).length;
+    var absent = matches.filter(function(c){ return c.attendance === 'absent'; }).length;
+    var neștiut = matches.length - prezent - absent;
+
+    var rows = matches.slice(0, 6).map(function(c){
+      return '<div style="display:flex; justify-content:space-between; gap:10px; font-size:0.82rem; padding:4px 0;">' +
+        '<span>'+fmtDate(c.date)+' &middot; '+c.service+'</span>' + attendanceLabel(c.attendance) +
+      '</div>';
+    }).join('');
+
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gold); margin-bottom:8px;">' +
+        matches.length + ' programări anterioare &middot; ' + prezent + ' au venit, ' + absent + ' nu au venit, ' + neștiut + ' neștiut' +
+      '</div>' + rows + (matches.length > 6 ? '<div style="font-size:0.78rem; opacity:0.5; margin-top:6px;">...și încă '+(matches.length-6)+'</div>' : '');
+
+    // Autocompletare telefon/email din cea mai recentă potrivire exactă de nume,
+    // doar dacă acele câmpuri sunt încă goale (nu suprascriem ce a scris ea deja).
+    var exact = matches.find(function(c){ return (c.name||'').toLowerCase() === query; });
+    if(exact && !historyAutofillDone){
+      var phoneEl = document.getElementById('cphone');
+      var emailEl = document.getElementById('cemail');
+      if(!phoneEl.value && exact.phone){ phoneEl.value = exact.phone; }
+      if(!emailEl.value && exact.email){ emailEl.value = exact.email; }
+      historyAutofillDone = true;
+    }
+  });
 
   loadClosures();
   loadClients();
