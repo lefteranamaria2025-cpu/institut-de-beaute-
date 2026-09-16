@@ -19,10 +19,11 @@ async function sendBrevoEmail(to, toName, subject, htmlContent) {
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
   const SALON_EMAIL = process.env.SALON_EMAIL || 'contact@institutjardinanglais.fr';
   const SALON_NAME = process.env.SALON_NAME || 'Institut de Beauté du Jardin Anglais';
-  if (!BREVO_API_KEY || !to) return;
+  if (!BREVO_API_KEY) return { skipped: 'no BREVO_API_KEY' };
+  if (!to) return { skipped: 'no recipient email' };
 
   try {
-    await fetch('https://api.brevo.com/v3/smtp/email', {
+    const resp = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
         'accept': 'application/json',
@@ -36,8 +37,13 @@ async function sendBrevoEmail(to, toName, subject, htmlContent) {
         htmlContent
       })
     });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      return { ok: false, status: resp.status, error: errText };
+    }
+    return { ok: true };
   } catch (e) {
-    console.error('Brevo attendance email error:', e);
+    return { ok: false, error: e.message };
   }
 }
 
@@ -100,6 +106,7 @@ export default async function handler(req, res) {
     const { error } = await supabase.from('bookings').update({ attendance }).eq('id', id);
     if (error) return res.status(500).json({ error: error.message });
 
+    var emailResult = null;
     if (existing && existing.email) {
       if (attendance === 'prezent') {
         const reviewLink = process.env.GOOGLE_REVIEW_LINK;
@@ -115,7 +122,7 @@ export default async function handler(req, res) {
             ${reviewBtn}
             <p style="margin-top:30px;">À très bientôt,<br>${process.env.SALON_NAME || 'Institut de Beauté du Jardin Anglais'}</p>
           </div>`;
-        await sendBrevoEmail(existing.email, existing.name, 'Merci pour votre visite — votre avis compte !', html);
+        emailResult = await sendBrevoEmail(existing.email, existing.name, 'Merci pour votre visite — votre avis compte !', html);
       } else if (attendance === 'absent') {
         const html = `
           <div style="font-family: Georgia, serif; max-width: 480px; margin: 0 auto; color: #211C19;">
@@ -125,11 +132,13 @@ export default async function handler(req, res) {
             <p>N'hésitez pas à nous recontacter pour reprogrammer un nouveau rendez-vous quand cela vous conviendra.</p>
             <p style="margin-top:30px;">À bientôt,<br>${process.env.SALON_NAME || 'Institut de Beauté du Jardin Anglais'}</p>
           </div>`;
-        await sendBrevoEmail(existing.email, existing.name, 'Nous vous avons manqué aujourd\'hui', html);
+        emailResult = await sendBrevoEmail(existing.email, existing.name, 'Nous vous avons manqué aujourd\'hui', html);
       }
+    } else {
+      emailResult = { skipped: 'no existing.email on this booking' };
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, emailResult: emailResult });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
