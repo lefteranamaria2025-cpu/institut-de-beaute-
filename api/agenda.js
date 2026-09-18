@@ -600,18 +600,11 @@ const AGENDA_HTML = `<!DOCTYPE html>
 
   async function setAttendance(id, status){
     try{
-      var resp = await fetch('/api/bookings?id=' + encodeURIComponent(id), {
+      await fetch('/api/bookings?id=' + encodeURIComponent(id), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ attendance: status })
       });
-      var data = await resp.json();
-      console.log('DEBUG emailResult:', data.emailResult);
-      if(data.emailResult && data.emailResult.ok === false){
-        alert('DEBUG: email eșuat — ' + JSON.stringify(data.emailResult));
-      } else if(data.emailResult && data.emailResult.skipped){
-        alert('DEBUG: email omis — ' + data.emailResult.skipped);
-      }
     }catch(e){
       console.error('Nu s-a putut actualiza prezența', e);
     }
