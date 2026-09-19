@@ -47,7 +47,7 @@ export default async function handler(req, res) {
         <li><strong>Date :</strong> ${formattedDate}</li>
         <li><strong>Heure :</strong> ${time}</li>
       </ul>
-      <p>Un rappel automatique vous sera envoyé avant votre rendez-vous.</p><p> Pour annuler ou modifier ce rendez-vous, merci de nous appeler au <strong>06 05 60 49 49</strong>.</p>`
+      <p>Un rappel automatique vous sera envoyé avant votre rendez-vous.</p><p>Pour annuler ou modifier ce rendez-vous, merci de nous appeler au <strong>06 05 60 49 49</strong>.</p>
       <p style="margin-top:30px;">À très bientôt,<br>${SALON_NAME}</p>
     </div>
   `;
