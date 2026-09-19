@@ -1,10 +1,3 @@
-// Fichier utilitaire partagé : connexion à Supabase.
-// Utilisé par les autres fonctions (book.js, bookings.js, send-reminders.js).
-//
-// Variables d'environnement nécessaires (à ajouter dans Vercel) :
-//   SUPABASE_URL          -> "Project URL" trouvée dans Supabase (Settings > API)
-//   SUPABASE_SERVICE_KEY  -> la clé "service_role" (jamais la clé "anon")
-
 import { createClient } from '@supabase/supabase-js';
 
 let client = null;
